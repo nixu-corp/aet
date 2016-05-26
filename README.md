@@ -6,7 +6,9 @@
 * [How to use](#how-to-use)
     - Basic
     - Advanced
-* [Script walkthrough](#walkthrough)
+* [Script walkthrough](#script-walkthrough)
+
+---
 
 ## Purpose
 The purpose of this software is to make the testing of Android applications in a virtual environment easier, by providing a script that hides the signs of the emulator.
