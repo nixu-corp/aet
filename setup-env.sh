@@ -89,7 +89,7 @@ abort() {
     message "ABORTING..."
     message "Cleanup"
     cleanup
-    echo "Failure!"
+    echo -e "\e[0;31mFailure!\e[0m"
     exit
 } # abort()
 
@@ -248,12 +248,12 @@ decompress_ramdisk() {
 } # decompress_ramdisk()
 
 change_ramdisk_props() {
+    message "   Modyfying ${DEFAULT_PROP_FILE}"
+
     if [ ! -f "${EXEC_DIR}/${TMP_RAMDISK_DIR}/${DEFAULT_PROP_FILE}" ]; then
-        message "\e[0;31m${DEFAULT_PROP_FILE} is missing!\e[0m"
+        message "\e[0;31m${DEFAULT_PROP_FILE} is missing or you do not have access!\e[0m"
         abort
     fi
-
-    message "   Modyfying ${DEFAULT_PROP_FILE}"
 
     cd "${EXEC_DIR}/${TMP_RAMDISK_DIR}"
     local default_new="default_new.prop"
@@ -285,12 +285,12 @@ mount_system() {
 } # mount_system()
 
 change_system_props() {
+    message "   Modifying ${BUILD_PROP_FILE}"
+
     if [ ! -f "${EXEC_DIR}/${TMP_MOUNT_DIR}/${BUILD_PROP_FILE}" ]; then
         message "\e[0;31m${BUILD_PROP_FILE} is missing!\e[0m"
         abort
     fi
-
-    message "   Modifying ${BUILD_PROP_FILE}"
 
     cd "${EXEC_DIR}/${TMP_MOUNT_DIR}"
     local build_new="build_new.prop"
