@@ -32,11 +32,11 @@ Your system image folder:
 ```
   
 _SDK Root_:      The directory where you installed the Android SDK when
-launching Android Studio for the first time
+launching Android Studio for the first time  
 _API_:           Varies from 1 to 23 depending on what Android version you are
-developing for
-_Manufacturer_:  'default' or 'google\_apis'
-_Architecture_:  armeabi-v7a or x86 or x86\_64
+developing for  
+_Manufacturer_:  'default' or 'google\_apis'  
+_Architecture_:  armeabi-v7a or x86 or x86\_64  
 
 After this you need to run the script:
   
@@ -64,7 +64,7 @@ the silenced mode you run the script with the __*-s*__ option.
 ## Script walkthrough
 **Note**: ramdisk.img is actually a compressed gzip file and not a disc image!
 1. Makes a temporary directory for ramdisk.img
-2. Runs: 'gzip -dc &lt;ramdisk.img&gt; | cpio -i' and decompresses it into the
+2. Runs: 'gzip -dc &lt;ramdisk.img&gt; | cpio -i' and decompresses it into the  
 temporary directory
 3. Makes changes into the files in the temporary ramdisk directory
 4. Runs: './mkbootfs &lt;temporary directory&gt; | gzip &gt; &lt;ramdisk.img&gt;
