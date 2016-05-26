@@ -1,12 +1,12 @@
 # Documentation for emulation detection resistant emulation environment setup
 
 ## Table of contents
-* Purpose
-* Prerequisites
-* How to use
+* [Purpose](#purpose)
+* [Prerequisites](#prerequisites)
+* [How to use](#how-to-use)
     - Basic
     - Advanced
-* Script walkthrough
+* [Script walkthrough](#walkthrough)
 
 ## Purpose
 The purpose of this software is to make the testing of Android applications in a virtual environment easier, by providing a script that hides the signs of the emulator.
