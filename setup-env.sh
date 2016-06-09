@@ -15,6 +15,11 @@ TOOLS_CONF=""
 MODIFY_CONF=""
 
 parse_arguments() {
+    if [ $# -eq 0 ]; then
+        echo "${USAGE}"
+        exit
+    fi
+
     while getopts ":hm:s:" opt ; do
         case $opt in
             h)
