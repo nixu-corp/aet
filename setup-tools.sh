@@ -2,13 +2,53 @@
 
 set -u
 
+################################
+# Outline
+################################
+# Global variables
+#
+# General functions
+#   loading()
+#   clear_printf()
+#   clear_printfln()
+#   parse_arguments()
+#   read_conf()
+#   check_filesystem()
+#   cleanup()
+#
+# Android Studio functions
+#   install_android_studio()
+#   download_android_studio()
+#   unzip_android_studio()
+#
+# Core Android SDK functions
+#   install_android_sdk()
+#   download_android_sdk()
+#   unzip_android_sdk()
+#   install_sdk_packages()
+#   get_packages_info()
+#   extract_package_info()
+#   process_package_info()
+#   install_package()
+#
+# Android SDK API's functions
+#   install_sdk_sys_imgs()
+#   download_sys_img_xml()
+#   parse_sys_img_xml()
+#   download_sys_img()
+#   unzip_sys_img()
+#
+# MAIN; Entry point
+#
+################################
+
 ###################
 # Global variables
 ###################
 
 USAGE="Usage: ./setup-tools.sh <configuration file>"
 
-ANDROID_SDK_SYS_IMG_BASE_URL="https://dl.google.com/android/repository/sys-img/android"
+ANDROID_SDK_SYS_IMG_BASE_URL="https://dl.google.com/android/repository/sys-img"
 ANDROID_SDK_SYS_IMG_URL=""
 
 CONF_FILE=""
@@ -17,8 +57,8 @@ ASDK_DIR=""
 DOWNLOAD_DIR=""
 STUDIO_FILE="android-studio"
 SDK_FILE="android-sdk"
-XML_FILE="sys-img.xml"
-SYS_IMG_ZIP="sys-img.zip"
+XML_FILE="sys-img"
+SYS_IMG_FILE="sys-img"
 APIS=()
 A_PLATFORMS=() 
 G_PLATFORMS=()
@@ -38,17 +78,40 @@ SPIN[1]="\\"
 SPIN[2]="|"
 SPIN[3]="/"
 
+#######################
+# General functions
+#######################
+
+loading(){
+    local message=${1}
+    while true; do
+        for s in "${SPIN[@]}"; do
+            clear_printf "[${message}] ${s}"
+            sleep 0.1
+        done
+    done
+} # loading()
+
+clear_printf() {
+    printf "\r$(tput el)"
+    printf "%s" "${1}"
+} # clear_printf()
+
+clear_printfln() {
+    clear_printf "${1}"
+    printf "\n"
+} # clear_printfln()
 
 parse_arguments() {
     if [ $# -ne 1 ]; then
-        echo ${USAGE}
+        clear_printfln "${USAGE}"
         exit
     fi
 
     CONF_FILE=$1
 
     if [ ! -f ${CONF_FILE} ]; then
-        echo "Configuration file does not exist!"
+        clear_printfln "Configuration file does not exist!"
         exit
     fi
 } # parse_arguments()
@@ -76,27 +139,43 @@ read_conf() {
             read -r -a G_PLATFORMS <<< "${BASH_REMATCH[1]}"
         fi
     done < "${CONF_FILE}"
-
-    if [ ! -d "${DOWNLOAD_DIR}" ]; then
-        echo "Download directory not found!"
-        exit
-    fi
 } # read_conf()
 
 check_filesystem() {
     DOWNLOAD_DIR="${DOWNLOAD_DIR%/}"
 
+    if [ ! -d "${DOWNLOAD_DIR}" ]; then
+        clear_printfln "Download directory not found!"
+        exit
+    fi
+
     local ext=".zip"
     local zip_postfix="0"
-    while [ -f "${STUDIO_FILE}${ext}" ]; do
+    local tgz_postfix="0"
+    local xml_postfix="0"
+
+    while [ -f "${DOWNLOAD_DIR}/${STUDIO_FILE}${ext}" ]; do
         STUDIO_FILE="${STUDIO_FILE}${zip_postfix}"
     done
     STUDIO_FILE="${STUDIO_FILE}${ext}"
 
-    while [ -f "${SDK_FILE}${ext}" ]; do
-        SDK_FILE="${SDK_FILE}${zip_postfix}"
+    while [ -f "${DOWNLOAD_DIR}/${SYS_IMG_FILE}${ext}" ]; do
+        SYS_IMG_FILE="${SYS_IMG_FILE}${zip_postfix}"
+    done
+    SYS_IMG_FILE="${SYS_IMG_FILE}${ext}"
+
+    ext=".tgz"
+    while [ -f "${DOWNLOAD_DIR}/${SDK_FILE}${ext}" ]; do
+        SDK_FILE="${SDK_FILE}${tgz_postfix}"
     done
     SDK_FILE="${SDK_FILE}${ext}"
+
+    ext=".xml"
+    while [ -f "${DOWNLOAD_DIR}/${XML_FILE}${ext}" ]; do
+        XML_FILE="${XML_FILE}${xml_postfix}"
+    done
+    XML_FILE="${XML_FILE}${ext}"
+
 
     local astudio_postfix="0"
     ASTUDIO_DIR="${ASTUDIO_DIR%/}"
@@ -113,55 +192,70 @@ check_filesystem() {
     mkdir -p "${ASDK_DIR}"
 } # check_filesystem()
 
+cleanup() {
+    clear_printfln "Deleting files..."
+    rm "${DOWNLOAD_DIR}/${STUDIO_FILE}" &>/dev/null
+    rm "${DOWNLOAD_DIR}/${SDK_FILE}"  &>/dev/null
+    rm "${DOWNLOAD_DIR}/${XML_FILE}"  &>/dev/null
+    rm "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" &>/dev/null
+} # cleanup()
+
+#############################
+# Android Studio functions
+#############################
+
 install_android_studio() {
+    clear_printfln "---------------------------------------"
+    clear_printfln "Installing Android Studio"
+    clear_printfln "---------------------------------------"
     download_android_studio
     unzip_android_studio
+    clear_printfln ""
 } # install_android_studio()
 
 download_android_studio() {
-    echo "Downloading Android Studio..."
+    clear_printfln "Downloading Android Studio..."
     wget -q --show-progress -O "${DOWNLOAD_DIR}/${STUDIO_FILE}" "https://dl.google.com/dl/android/studio/ide-zips/2.1.1.0/android-studio-ide-143.2821654-linux.zip"
 } # download_android_studio()
 
 unzip_android_studio() {
-    while true; do
-        for i in ${SPIN[@]}; do
-            echo -ne "\r[Unzipping ${STUDIO_FILE}] $i"
-            sleep 0.1
-        done
-    done & 
+    loading "Unzipping ${STUDIO_FILE}" &
     unzip "${DOWNLOAD_DIR}/${STUDIO_FILE}" -d "${ASTUDIO_DIR}" &>/dev/null
     kill $!
     trap 'kill $1' SIGTERM
-    echo -e "\r[Unzipping ${STUDIO_FILE}] Done."
+    clear_printfln "[Unzipping ${STUDIO_FILE}] Done."
 } # unzip_android_studio()
 
+#############################
+# Android SDK functions
+#############################
+
 install_android_sdk() {
+    clear_printfln "---------------------------------------"
+    clear_printfln "Installing Android SDK"
+    clear_printfln "---------------------------------------"
     download_android_sdk
     unzip_android_sdk
+    clear_printfln ""
 } # install_android_sdk()
 
 download_android_sdk() {
-    echo "Downloading Android SDK..."
-    echo "${DOWNLOAD_DIR}/${SDK_FILE}"
+    clear_printfln "Downloading: ${DOWNLOAD_DIR}/${SDK_FILE}"
     wget -q --show-progress -O "${DOWNLOAD_DIR}/${SDK_FILE}" "https://dl.google.com/android/android-sdk_r22.0.5-linux.tgz"
 } # download_android_sdk()
 
 unzip_android_sdk() {
-    while true; do
-        for i in ${SPIN[@]}; do
-            echo -ne "\r[Unzipping ${SDK_FILE}] $i"
-            sleep 0.1
-        done
-    done &
+    loading "Unzipping ${SDK_FILE}" &
     tar -zxvf "${DOWNLOAD_DIR}/${SDK_FILE}" -C "${ASDK_DIR}" &>/dev/null
     kill $!
     trap 'kill $1' SIGTERM
-    echo -e "\r[Unzipping ${SDK_FILE}] Done."
+    clear_printfln "[Unzipping ${SDK_FILE}] Done."
 } # unzip_android_sdk
 
 install_sdk_packages() {
-    echo "Installing Android SDK packages..."
+    clear_printfln "---------------------------------------"
+    clear_printfln "Installing Android SDK packages"
+    clear_printfln "---------------------------------------"
 
     local -a retry_packages=()
     local -a packages_info=()
@@ -209,9 +303,9 @@ install_sdk_packages() {
         if [ ${round_done} -eq 1 ]; then
             if [ ${#retry_packages[@]} -gt 0 ]; then
                 if [ ${retry_counter} -lt ${retry_count} ]; then
-                    echo "----------------------------"
-                    echo "Retrying to install skipped packages"
-                    echo ${retry_packages[@]}
+                    clear_printfln ""
+                    clear_printfln "Retrying to install skipped packages"
+                    clear_printfln "${retry_packages[@]}"
                     packages_info=${retry_packages}
                     retry_packages=()
                     grepstr=${grepstr_bak}
@@ -221,11 +315,13 @@ install_sdk_packages() {
                     previous_count=0
                     retry_counter=$((retry_counter + 1))
                 else
-                    echo "Failed to install some packages"
+                    clear_printfln "---"
+                    clear_printfln "Failed to install some packages"
                     break
                 fi
             else
-                echo "Successfully installed packages"
+                clear_printfln "---"
+                clear_printfln "Successfully installed packages"
                 break
             fi
         else
@@ -233,6 +329,7 @@ install_sdk_packages() {
         fi 
         
     done
+    clear_printfln ""
 } # install_sdk_packages()
 
 get_packages_info() {
@@ -248,7 +345,7 @@ get_packages_info() {
         if [[ ${line} =~ ${id_regex} ]] \
         || [[ ${line} =~ ${desc_regex} ]]; then
             package_info="${package_info} ${BASH_REMATCH[1]}"
-            package_info="$(echo ${package_info} | sed "s/[[:space:]]\+/ /g")"
+            package_info="$(printf "${package_info}" | sed "s/[[:space:]]\+/ /g")"
         elif [[ ${line} =~ ${split_regex} ]]; then
             if [ ! -z "${package_info}" ]; then
                 packages_info+=("${package_info}")
@@ -301,45 +398,64 @@ process_package_info() {
     fi
 
     if  [ ${previous_count} -ge 2 ]; then
-        echo "Skipping ${package_desc}..."
+        clear_printfln "Skipping ${package_desc}..."
         retry_packages+=("id: ${package_ID} or \"${package_name}\" Desc: ${package_desc}")
-        grepstr=$(echo ${grepstr} | sed "s/${package_name}|\?//")
+        grepstr=$(printf "${grepstr}" | sed "s/${package_name}|\?//")
         grepstr="${grepstr%|)}"
         grepstr="${grepstr%)})"
     else
-        echo "Installing..."
-#        install_package
+        install_package
     fi
 } # process_package_info()
 
 install_package() {
-    echo "Installing ${package_desc} (\"${package_name}\")"
-    (echo "y" | ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android update sdk --no-ui --filter ${package_name}) &>/dev/null
+    loading "Installing ${package_desc}" &
+    (printf "y" | ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android update sdk --no-ui --filter ${package_name}) &>/dev/null
     previous_ID=${package_ID}
     previous_name=${package_name}
     previous_desc=${package_desc}
+    kill $!
+    trap 'kill $1' SIGTERM
+    clear_printfln "Installed ${package_desc}"
 } # install_package()
 
 install_sdk_sys_imgs() {
-    echo "Installing Android SDK system images..."
+    clear_printfln "---------------------------------------"
+    clear_printfln "Installing Android SDK system images"
+    clear_printfln "---------------------------------------"
+    clear_printfln ""
+    clear_printfln "Installing Android API system images"
+    local tag_id=""
+    download_sys_img_xml "android"
     for platform in ${A_PLATFORMS[@]}; do
-        local api="$(echo ${platform} | cut -d ":" -f 1)"
-        local plat="$(echo ${platform} | cut -d ":" -f 2)"
-        download_sys_img_xml
+        local api="$(printf "${platform}" | cut -d ":" -f 1)"
+        local plat="$(printf "${platform}" | cut -d ":" -f 2)"
         parse_sys_img_xml ${api} ${plat}
-        download_sys_img
-        unzip_sys_img ${api} ${plat} "default"
+        download_sys_img "android"
+        unzip_sys_img ${api} ${plat} ${tag_id}
     done
+
+    clear_printfln ""
+    clear_printfln "Installing Google API system images"
+    download_sys_img_xml "google_apis"
+    for platform in ${G_PLATFORMS[@]}; do
+        local api="$(printf "${platform}" | cut -d ":" -f 1)"
+        local plat="$(printf "${platform}" | cut -d ":" -f 2)"
+        parse_sys_img_xml ${api} ${plat}
+        download_sys_img "google_apis"
+        unzip_sys_img ${api} ${plat} ${tag_id}
+    done
+    clear_printfln ""
 } # install_sdk_sys_imgs()
 
 download_sys_img_xml() {
-    echo "Downloading xml..."
-    wget -q --show-progress -O "${DOWNLOAD_DIR}/${XML_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/sys-img.xml"
+    local provider=${1}
+
+    wget -q --show-progress -O "${DOWNLOAD_DIR}/${XML_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/sys-img.xml"
 } # download_sys_img_xml()
 
 parse_sys_img_xml() {
-    echo "Parsing xml..."
-    local api_level="$(echo ${1} | cut -d "-" -f 2)"
+    local api_level="$(printf "${1}" | cut -d "-" -f 2)"
     local platform="${2}"
     local platform_n=""
 
@@ -350,33 +466,39 @@ parse_sys_img_xml() {
     fi
     api_level=${api_level%N}
 
-    ANDROID_SDK_SYS_IMG_URL=$(xmlstarlet sel -N x=http://schemas.android.com/sdk/android/sys-img/3 -T -t -m "//x:system-image[x:api-level='${api_level}' and x:abi='${platform}' ${platform_n}]" -v "x:archives/x:archive/x:url" -n ${DOWNLOAD_DIR}/${XML_FILE})
-    echo "${ANDROID_SDK_SYS_IMG_URL}"
+    if [ "${platform}" == "arm" ]; then
+        platform="armeabi-v7a"
+    fi
+
+    local xmlstarlet_output=$(xmlstarlet sel -N x=http://schemas.android.com/sdk/android/sys-img/3 -T -t -m "//x:system-image[x:api-level='${api_level}' and x:abi='${platform}' ${platform_n}]" -v "concat(x:archives/x:archive/x:url, '|', x:tag-id )" -n ${DOWNLOAD_DIR}/${XML_FILE})
+
+    ANDROID_SDK_SYS_IMG_URL="$(printf "${xmlstarlet_output}" | cut -d "|" -f 1)"
+    tag_id="$(printf "${xmlstarlet_output}" | cut -d "|" -f 2)"
 } # parse_sys_img_xml()
 
 download_sys_img() {
-    echo "Downloading sys-img.zip..."
-    wget -q --show-progress -O "${DOWNLOAD_DIR}/${SYS_IMG_ZIP}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${ANDROID_SDK_SYS_IMG_URL}"
+    local provider=${1}
+
+    wget -q --show-progress -O "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/${ANDROID_SDK_SYS_IMG_URL}"
 } # download_sys_img()
 
 unzip_sys_img() {
     local api=${1}
     local platform=${2}
-    local provider=${3}
-    local path="${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/${api}/${provider}/"
+    local path="${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/${api}/${tag_id}/"
 
-    mkdir -p ${path}
-    unzip "${DOWNLOAD_DIR}/${SYS_IMG_ZIP%.zip}" -d ${path}
-}
+    loading "Unzipping ${SYS_IMG_FILE}" &
+    mkdir -p ${path} &>/dev/null
+    unzip "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" -d ${path} &>/dev/null
+    kill $!
+    trap 'kill $1' SIGTERM
+    clear_printfln "[Unzipping ${SYS_IMG_FILE}] Done."
+} # unzip_sys_img()
 
-cleanup() {
-    echo "Deleting files..."
-    rm "${DOWNLOAD_DIR}/${STUDIO_FILE}" &>/dev/null
-    rm "${DOWNLOAD_DIR}/${SDK_FILE}" &>/dev/null
-    rm "${DOWNLOAD_DIR}/${XML_FILE}" &>/dev/null
-    rm "${DOWNLOAD_DIR}/${SYS_IMG_ZIP}" &>/dev/null
-} # cleanup()
 
+##########################
+# MAIN; Entry point
+#########################
 parse_arguments $@
 read_conf
 check_filesystem
@@ -385,4 +507,6 @@ install_android_sdk
 install_sdk_packages
 install_sdk_sys_imgs
 cleanup
-echo -e "\nDone."
+clear_printfln "-----------------------------------"
+clear_printfln "Done."
+clear_printfln ""

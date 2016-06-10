@@ -2,9 +2,9 @@
 
 set -u
 
-#####################
+#############################
 # Outline
-#####################
+#############################
 # Global variables
 #
 # General functions
@@ -32,6 +32,10 @@ set -u
 #
 # Run loop
 #   run()
+#
+# MAIN; Entry point
+#
+#############################
 
 ####################
 # Global variables
@@ -366,8 +370,9 @@ run() {
     done
 } # run()
 
+
 ########################
-# Main; Entry point
+# MAIN; Entry point
 ########################
 setup
 parse_arguments $@
