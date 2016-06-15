@@ -9,6 +9,8 @@ set -u
 #
 # General functions
 #   loading()
+#   clear_print()
+#   clear_println()
 #   clear_printf()
 #   clear_printfln()
 #   parse_arguments()
@@ -46,7 +48,23 @@ set -u
 # Global variables
 ###################
 
-USAGE="Usage: ./setup-tools.sh <configuration file>"
+USAGE="Usage: ./setup-tools.sh [-s|--silent] <configuration file>"
+HELP_TEXT="
+OPTIONS
+-s, --silent            Silent mode, supresses all output except result
+-h, --help              Display this help and exit
+
+<configuration file>    Configuration file for setup-tools script"
+HELP_MSG="${USAGE}\n${HELP_TEXT}"
+
+BANNER="
+========================================
+>                                      <
+>          Tools setup script          <
+>       Author: Daniel Riissanen       <
+>                                      <
+========================================
+"
 
 ANDROID_SDK_SYS_IMG_BASE_URL="https://dl.google.com/android/repository/sys-img"
 ANDROID_SDK_SYS_IMG_URL=""
@@ -60,18 +78,20 @@ SDK_FILE="android-sdk"
 XML_FILE="sys-img"
 SYS_IMG_FILE="sys-img"
 APIS=()
-A_PLATFORMS=() 
+A_PLATFORMS=()
 G_PLATFORMS=()
 
 # Configuration variables
 WHITESPACE_REGEX="^[[:blank:]]*$"
-COMMENT_REGEX="[[:blank:]]*\#"
-DOWNLOAD_REGEX="^download_dir[[:blank:]]*=[[:blank:]]*(.*)"
-A_STUDIO_REGEX="^android_studio_installation_dir[[:blank:]]*=[[:blank:]]*(.*)"
-A_SDK_REGEX="^android_sdk_installation_dir[[:blank:]]*=[[:blank:]]*(.*)"
-A_APIS_REGEX="^android_apis[[:blank:]]*=[[:blank:]]*(.*)"
-A_PLATFORM_REGEX="^android_platform_architecture[[:blank:]]*=[[:blank:]]*(.*)"
-G_PLATFORM_REGEX="^google_platform_architecture[[:blank:]]*=[[:blank:]]*(.*)"
+COMMENT_REGEX="^[[:blank:]]*\#"
+DOWNLOAD_REGEX="^download_dir[[:blank:]]*=[[:blank:]]*\(.*\)"
+A_STUDIO_REGEX="^android_studio_installation_dir[[:blank:]]*=[[:blank:]]*\(.*\)"
+A_SDK_REGEX="^android_sdk_installation_dir[[:blank:]]*=[[:blank:]]*\(.*\)"
+A_APIS_REGEX="^android_apis[[:blank:]]*=[[:blank:]]*\(.*\)"
+A_PLATFORM_REGEX="^android_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
+G_PLATFORM_REGEX="^google_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
+
+SILENT_MODE=0
 
 SPIN[0]="-"
 SPIN[1]="\\"
@@ -82,7 +102,7 @@ SPIN[3]="/"
 # General functions
 #######################
 
-loading(){
+loading() {
     local message=${1}
     while true; do
         for s in "${SPIN[@]}"; do
@@ -92,100 +112,149 @@ loading(){
     done
 } # loading()
 
+write() {
+    if [ ${SILENT_MODE} -eq 0 ]; then
+        if [ $# -ge 2 ]; then
+            printf "${1}" "${2}"
+        elif [ $# -eq 1 ]; then
+            printf "${1}"
+        fi
+    fi
+} # message()
+
+clear_print() {
+    write "\r$(tput el)"
+    write "${1}"
+} # clear_print()
+
+clear_println() {
+    clear_print "${1}"
+    write "\n"
+} # clear_println()
+
 clear_printf() {
-    printf "\r$(tput el)"
-    printf "%s" "${1}"
+    write "\r$(tput el)"
+    write "%s" "${1}"
 } # clear_printf()
 
 clear_printfln() {
     clear_printf "${1}"
-    printf "\n"
+    write "\n"
 } # clear_printfln()
 
 parse_arguments() {
-    if [ $# -ne 1 ]; then
-        clear_printfln "${USAGE}"
+    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+        clear_println "${USAGE}"
+        clear_println "See -h for more info"
         exit
     fi
 
-    CONF_FILE=$1
+    for i in $@; do
+        if [ "${i}" == "-s" ] || [ "${i}" == "--silent" ]; then
+            SILENT_MODE=1
+        elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
+            clear_println "${HELP_MSG}"
+            exit
+        else
+            CONF_FILE="${i}"
+        fi
+    done
 
     if [ ! -f ${CONF_FILE} ]; then
-        clear_printfln "Configuration file does not exist!"
         exit
     fi
 } # parse_arguments()
 
 read_conf() {
     while read line; do
-        if [[ $line =~ ${WHITESPACE_REGEX} ]]; then
+
+        if [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
             continue
-        elif [[ $line =~ ${COMMENT_REGEX} ]]; then
+        elif [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
             continue
-        elif [[ $line =~ ${DOWNLOAD_REGEX} ]]; then
-            DOWNLOAD_DIR="${BASH_REMATCH[1]}"
-        elif [[ $line =~ ${A_STUDIO_REGEX} ]]; then
-            ASTUDIO_DIR="${BASH_REMATCH[1]}"
-        elif [[ $line =~ ${A_SDK_REGEX} ]]; then
-            ASDK_DIR="${BASH_REMATCH[1]}"
-        elif [[ $line =~ ${A_APIS_REGEX} ]]; then
+        elif [ -z "${line}" ]; then
+            continue
+        fi
+
+        local download_dir_capture=$(expr "${line}" : "${DOWNLOAD_REGEX}")
+        local astudio_dir_capture=$(expr "${line}" : "${A_STUDIO_REGEX}")
+        local asdk_dir_capture=$(expr "${line}" : "${A_SDK_REGEX}")
+        local a_apis_capture=$(expr "${line}" : "${A_APIS_REGEX}")
+        local a_platform_capture=$(expr "${line}" : "${A_PLATFORM_REGEX}")
+        local g_platform_capture=$(expr "${line}" : "${G_PLATFORM_REGEX}")
+
+        if [ ! -z "${download_dir_capture}" ]; then
+            DOWNLOAD_DIR="${download_dir_capture}"
+        elif [ ! -z "${astudio_dir_capture}" ]; then
+            ASTUDIO_DIR="${astudio_dir_capture}"
+        elif [ ! -z "${asdk_dir_capture}" ]; then
+            ASDK_DIR="${asdk_dir_capture}"
+        elif [ ! -z "${a_apis_capture}" ]; then
             IFS=","
-            read -r -a APIS <<< "${BASH_REMATCH[1]}"
-        elif [[ $line =~ ${A_PLATFORM_REGEX} ]]; then
+            read -r -a APIS <<< "${a_apis_capture}"
+        elif [ ! -z "${a_platform_capture}" ]; then
             IFS=","
-            read -r -a A_PLATFORMS <<< "${BASH_REMATCH[1]}"
-        elif [[ $line =~ ${G_PLATFORM_REGEX} ]]; then
+            read -r -a A_PLATFORMS <<< "${a_platform_capture}"
+        elif [ ! -z "${g_platform_capture}" ]; then
             IFS=","
-            read -r -a G_PLATFORMS <<< "${BASH_REMATCH[1]}"
+            read -r -a G_PLATFORMS <<< "${g_platform_capture}"
         fi
     done < "${CONF_FILE}"
+    
 } # read_conf()
 
 check_filesystem() {
+    local zip_ext=".zip"
+    local tgz_ext=".tgz"
+    local xml_ext=".xml"
+    local zip_postfix="0"
+    local tgz_postfix="0"
+    local xml_postfix="0"
+    local astudio_postfix="-new"
+    local asdk_postfix="-new"
+
     DOWNLOAD_DIR="${DOWNLOAD_DIR%/}"
+    ASTUDIO_DIR="${ASTUDIO_DIR%/}"
+    ASDK_DIR="${ASDK_DIR%/}"
 
     if [ ! -d "${DOWNLOAD_DIR}" ]; then
         clear_printfln "Download directory not found!"
         exit
     fi
 
-    local ext=".zip"
-    local zip_postfix="0"
-    local tgz_postfix="0"
-    local xml_postfix="0"
+    if [ -d "${ASTUDIO_DIR}" ]; then
+        clear_printfln "WARNING: Android studio installation directory already exists, creating new one with postfix: '${astudio_postfix}'!"
+    fi
 
-    while [ -f "${DOWNLOAD_DIR}/${STUDIO_FILE}${ext}" ]; do
+    if [ -d "${ASDK_DIR}" ]; then
+        clear_printfln "WARNING: Android SDK installation directory already exists, creating new one with postfix: '${asdk_postfix}'!"
+    fi
+
+    while [ -f "${DOWNLOAD_DIR}/${STUDIO_FILE}${zip_ext}" ]; do
         STUDIO_FILE="${STUDIO_FILE}${zip_postfix}"
     done
-    STUDIO_FILE="${STUDIO_FILE}${ext}"
+    STUDIO_FILE="${STUDIO_FILE}${zip_ext}"
 
-    while [ -f "${DOWNLOAD_DIR}/${SYS_IMG_FILE}${ext}" ]; do
+    while [ -f "${DOWNLOAD_DIR}/${SYS_IMG_FILE}${zip_ext}" ]; do
         SYS_IMG_FILE="${SYS_IMG_FILE}${zip_postfix}"
     done
-    SYS_IMG_FILE="${SYS_IMG_FILE}${ext}"
+    SYS_IMG_FILE="${SYS_IMG_FILE}${zip_ext}"
 
-    ext=".tgz"
-    while [ -f "${DOWNLOAD_DIR}/${SDK_FILE}${ext}" ]; do
+    while [ -f "${DOWNLOAD_DIR}/${SDK_FILE}${tgz_ext}" ]; do
         SDK_FILE="${SDK_FILE}${tgz_postfix}"
     done
-    SDK_FILE="${SDK_FILE}${ext}"
+    SDK_FILE="${SDK_FILE}${tgz_ext}"
 
-    ext=".xml"
-    while [ -f "${DOWNLOAD_DIR}/${XML_FILE}${ext}" ]; do
+    while [ -f "${DOWNLOAD_DIR}/${XML_FILE}${xml_ext}" ]; do
         XML_FILE="${XML_FILE}${xml_postfix}"
     done
-    XML_FILE="${XML_FILE}${ext}"
+    XML_FILE="${XML_FILE}${xml_ext}"
 
-
-    local astudio_postfix="0"
-    ASTUDIO_DIR="${ASTUDIO_DIR%/}"
     while [ -d ${ASTUDIO_DIR} ]; do
         ASTUDIO_DIR="${ASTUDIO_DIR}${astudio_postfix}"
     done
     mkdir -p "${ASTUDIO_DIR}"
 
-    local asdk_postfix="-new"
-    ASDK_DIR="${ASDK_DIR%/}"
     while [ -d ${ASDK_DIR} ]; do
         ASDK_DIR="${ASDK_DIR}${asdk_postfix}"
     done
@@ -282,12 +351,12 @@ install_sdk_packages() {
         packages+=("${sdk}")
     done
 
-    grepstr="^("
+    grepstr="^\("
     for package in ${packages[@]}; do
-        grepstr="${grepstr}${package}|"
+        grepstr="${grepstr}${package}\|"
     done
-    grepstr=${grepstr%|}
-    grepstr="${grepstr})"
+    grepstr=${grepstr%\\|}
+    grepstr="${grepstr}\)"
     grepstr_bak=${grepstr}
 
     get_packages_info
@@ -321,7 +390,11 @@ install_sdk_packages() {
                 fi
             else
                 clear_printfln "---"
-                clear_printfln "Successfully installed packages"
+                if [ ${previous_count} -eq 0 ]; then
+                    clear_printfln "No packages were installed"
+                else
+                    clear_printfln "Successfully installed packages"
+                fi
                 break
             fi
         else
@@ -335,22 +408,28 @@ install_sdk_packages() {
 get_packages_info() {
     local package_data=$(${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android list sdk --extended 2>/dev/null) &>/dev/null
     local package_info=""
-    local split_regex="^---+"
-    local id_regex="^(id: .*)"
-    local desc_regex="^[[:blank:]]*(Desc: .*)"
+    local split_regex="^---\+"
+    local id_regex="\(id: .*\)"
+    local desc_regex="[[:blank:]]*\(Desc: .*\)"
 
     packages_info=()
 
     while read line; do
-        if [[ ${line} =~ ${id_regex} ]] \
-        || [[ ${line} =~ ${desc_regex} ]]; then
-            package_info="${package_info} ${BASH_REMATCH[1]}"
+        local id_capture=$(expr "${line} " : "${id_regex}")
+        local desc_capture=$(expr "${line} " : "${desc_regex}")
+
+        if [ ! -z "${id_capture}" ]; then
+            package_info="${package_info} ${id_capture}"
             package_info="$(printf "${package_info}" | sed "s/[[:space:]]\+/ /g")"
-        elif [[ ${line} =~ ${split_regex} ]]; then
+        elif [ ! -z "${desc_capture}" ]; then
+            package_info="${package_info} ${desc_capture}"
+            package_info="$(printf "${package_info}" | sed "s/[[:space:]]\+/ /g")"
+            package_info="$(printf "${package_info}" | sed "s/,//g")"
+        elif [ $(expr "${line}" : "${split_regex}") -gt 0 ]; then
             if [ ! -z "${package_info}" ]; then
                 packages_info+=("${package_info}")
-                package_info=""
             fi
+            package_info=""
         fi
     done <<< "${package_data}"
 
@@ -361,31 +440,31 @@ get_packages_info() {
 } # get_package_info()
 
 extract_package_info() {
-    local id_regex="id: ([0-9]+)"
-    local name_regex="or \"(.*?)\""
-    local desc_regex="Desc: (.*)$"
     local package_info="${1}"
+    local id_capture=$(expr "${package_info}" : "[[:blank:]]*id: \([0-9]\+\)")
+    local name_capture=$(expr "${package_info}" : ".*\?or \"\(.*\)\"")
+    local desc_capture=$(expr "${package_info}" : ".*\?Desc: \(.*\)")
     package_ID=""
     package_name=""
     package_desc=""
 
-    if [[ ${package_info} =~ ${id_regex} ]]; then
-        package_ID="${BASH_REMATCH[1]}"
+    if [ ! -z "${id_capture}" ]; then
+        package_ID="${id_capture}"
     fi
 
-    if [[ ${package_info} =~ ${name_regex} ]]; then
-        package_name="${BASH_REMATCH[1]}"
+    if [ ! -z "${name_capture}" ]; then
+        package_name="${name_capture}"
     fi
 
-    if [[ ${package_info} =~ ${desc_regex} ]]; then
-        package_desc="${BASH_REMATCH[1]}"
+    if [ ! -z ${desc_capture} ]; then
+        package_desc="${desc_capture}"
     fi
 } # extract_package_info()
 
 process_package_info() {
-    local wanted_regex=${1}
+    local wanted_regex="${1}"
 
-    if ! [[ ${package_name} =~ ${wanted_regex} ]]; then
+    if [ -z "$(expr "${package_name}" : "${wanted_regex}")" ]; then
         return 1
     fi
 
@@ -394,10 +473,10 @@ process_package_info() {
     && [ "${previous_desc}" == "${package_desc}" ]; then
         previous_count=$((previous_count + 1))
     else
-        previous_count=0
+        previous_count=1
     fi
 
-    if  [ ${previous_count} -ge 2 ]; then
+    if  [ ${previous_count} -gt 2 ]; then
         clear_printfln "Skipping ${package_desc}..."
         retry_packages+=("id: ${package_ID} or \"${package_name}\" Desc: ${package_desc}")
         grepstr=$(printf "${grepstr}" | sed "s/${package_name}|\?//")
@@ -426,25 +505,30 @@ install_sdk_sys_imgs() {
     clear_printfln ""
     clear_printfln "Installing Android API system images"
     local tag_id=""
-    download_sys_img_xml "android"
-    for platform in ${A_PLATFORMS[@]}; do
-        local api="$(printf "${platform}" | cut -d ":" -f 1)"
-        local plat="$(printf "${platform}" | cut -d ":" -f 2)"
-        parse_sys_img_xml ${api} ${plat}
-        download_sys_img "android"
-        unzip_sys_img ${api} ${plat} ${tag_id}
-    done
 
-    clear_printfln ""
-    clear_printfln "Installing Google API system images"
-    download_sys_img_xml "google_apis"
-    for platform in ${G_PLATFORMS[@]}; do
-        local api="$(printf "${platform}" | cut -d ":" -f 1)"
-        local plat="$(printf "${platform}" | cut -d ":" -f 2)"
-        parse_sys_img_xml ${api} ${plat}
-        download_sys_img "google_apis"
-        unzip_sys_img ${api} ${plat} ${tag_id}
-    done
+    if [ ${#A_PLATFORMS[@]} -gt 0 ]; then
+        download_sys_img_xml "android"
+        for platform in ${A_PLATFORMS[@]}; do
+            local api="$(printf "${platform}" | cut -d ":" -f 1)"
+            local plat="$(printf "${platform}" | cut -d ":" -f 2)"
+            parse_sys_img_xml ${api} ${plat}
+            download_sys_img "android"
+            unzip_sys_img ${api} ${plat} ${tag_id}
+        done
+    fi
+
+    if [ ${#G_PLATFORMS[@]} -gt 0 ]; then
+        clear_printfln ""
+        clear_printfln "Installing Google API system images"
+        download_sys_img_xml "google_apis"
+        for platform in ${G_PLATFORMS[@]}; do
+            local api="$(printf "${platform}" | cut -d ":" -f 1)"
+            local plat="$(printf "${platform}" | cut -d ":" -f 2)"
+            parse_sys_img_xml ${api} ${plat}
+            download_sys_img "google_apis"
+            unzip_sys_img ${api} ${plat} ${tag_id}
+        done
+    fi
     clear_printfln ""
 } # install_sdk_sys_imgs()
 
@@ -502,6 +586,7 @@ unzip_sys_img() {
 parse_arguments $@
 read_conf
 check_filesystem
+clear_println "${BANNER}"
 install_android_studio
 install_android_sdk
 install_sdk_packages

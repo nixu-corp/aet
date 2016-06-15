@@ -8,7 +8,10 @@ set -u
 # Global variables
 #
 # General functions
+#   println()
+#   printfln()
 #   message()
+#   fmessage()
 #   error()
 #   abort()
 #   setup()
@@ -41,23 +44,30 @@ set -u
 # Global variables
 ####################
 
-read -d '' USAGE << "EOF"
-Usage: ./modify-env.sh [-s] <configuration file>
-See -h for more info
-EOF
+USAGE="Usage: ./modify-env.sh [-s|--silent] <configuration file>"
+HELP_TEXT="
+OPTIONS
+-s, --silent            Silent mode, supresses all output except result
+-h, --help              Display this help and exit
 
-read -d '' help_text << "EOF"
--s                     Silent mode, supresses all output except result
-EOF
+<configuration file>    Configuration file for modify-env script"
+HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
-HELP_MSG="${USAGE}\n\n\n${help_text}"
+BANNER="
+========================================
+>                                      <
+>    Environment modification script   <
+>       Author: Daniel Riissanen       <
+>                                      <
+========================================
+"
 
 CONF_FILE=""
 SYS_IMG_FILE=""
 
-WHITESPACE_REGEX="^[[:space:]]*$"
-COMMENT_REGEX="^[[:space:]]*\#"
-SYS_IMG_REGEX="^system_img_dir[[:space:]]*=[[:space:]]*(.*)"
+WHITESPACE_REGEX="^[[:blank:]]*$"
+COMMENT_REGEX="^[[:blank:]]*#"
+SYS_IMG_REGEX="^system_img_dir_file[[:blank:]]*=[[:blank:]]*\(.*\)"
 
 EXEC_DIR="$(pwd)"
 TMP_RAMDISK_DIR="ramdisk"
@@ -70,8 +80,9 @@ SYSTEM_FILE="system.img"
 DEFAULT_PROP_FILE="default.prop"
 BUILD_PROP_FILE="build.prop"
 
-declare -i SILENT_MODE=0          # 0 = off, 1 = on
-declare -i SUCCESSES=0
+SILENT_MODE=0          # 0 = off, 1 = on
+SUCCESSES=0
+
 declare -a SYS_IMG_DIRS=()
 declare -A default_prop_changes
 declare -A build_prop_changes
@@ -80,11 +91,33 @@ declare -A build_prop_changes
 # General functions
 #######################
 
+println() {
+    if [ $# -eq 0 ]; then
+        printf "\n"
+    else
+        printf "${1}\n"
+    fi
+} # println()
+
+printfln() {
+    if [ $# -eq 0 ]; then
+        printf "\n"
+    else
+        printf "%s\n" "${1}"
+    fi
+} # printfln()
+
 message() {
     if [ ${SILENT_MODE} -eq 0 ]; then
-        echo -e "${1}"
+        println "${1}"
     fi
 } # message()
+
+fmessage() {
+    if [ ${SILENT_MODE} -eq 0 ]; then
+        printfln "${1}"
+    fi
+} # fmessage()
 
 error() {
     message "$@" 1>&2
@@ -95,7 +128,7 @@ abort() {
     message "ABORTING..."
     message "Cleanup"
     cleanup
-    echo -e "\e[0;31mFailure!\e[0m"
+    println "\033[0;31mFailure!\033[0m"
     exit
 } # abort()
 
@@ -116,14 +149,18 @@ setup() {
 parse_arguments() {
     SILENT_MODE=0
 
-    if [[ $# -eq 0 ]] || [[ $# -gt 2 ]]; then
-        error "Invalid arguments"
-        abort
+    if [ $# -eq 0 ] || [ $# -gt 3 ]; then
+        error "${USAGE}"
+        error "See -h for more info"
+        exit
     fi
 
     for i in $@; do
-        if [[ $i == "-s" ]]; then
+        if [ "${i}" == "-s" ] || [ "${i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
+            println "${HELP_MSG}"
+            exit
         else
             CONF_FILE="${i}"
         fi
@@ -137,30 +174,39 @@ parse_arguments() {
 
 read_conf() {
     while read line; do
-        if [[ $line =~ ${WHITESPACE_REGEX} ]]; then
+        if [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
             continue
-        elif [[ $line =~ ${COMMENT_REGEX} ]]; then
+        elif [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
             continue
-        elif [[ $line =~ ${SYS_IMG_REGEX} ]]; then
-            SYS_IMG_FILE="${BASH_REMATCH[1]}"
+        elif [ -z "${line}" ]; then
+            continue
+        fi
+
+        local sys_img_dir_file_capture=$(expr "${line}" : "${SYS_IMG_REGEX}")
+        if [ ! -z "${sys_img_dir_file_capture}" ]; then
+            SYS_IMG_FILE="${sys_img_dir_file_capture}"
         else
-            error "Error in configuration file"
+            error "Unknown configuration key found!"
             abort
         fi
     done < "${CONF_FILE}"
-
-    
 } # read_conf()
 
 read_sys_img_file() {
+    if [ ! -f ${SYS_IMG_FILE} ]; then
+        error "System image directory file cannot be found!"
+        error "Please verify the path in the configuration file"
+        exit
+    fi
+
     while read line; do
-        if [[ $line =~ ${WHITESPACE_REGEX} ]]; then
+        if [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
             continue
-        elif [[ $line =~ ${COMMENT_REGEX} ]]; then
+        elif [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
             continue
-        else
-            SYS_IMG_DIRS+=("${BASH_REMATCH[1]}")
         fi
+
+        SYS_IMG_DIRS+=("${line}")
     done < "${SYS_IMG_FILE}"
 } # read_sys_img_file()
 
@@ -170,23 +216,23 @@ check_files() {
     message "Checking files"
 
     if [ -f "${SYS_IMG_DIR}/${RAMDISK_FILE}" ]; then
-        message "[\e[0;32mOK\e[0m]   ${SYS_IMG_DIR}/${RAMDISK_FILE}"
+        message "[\033[0;32mOK\033[0m]   ${SYS_IMG_DIR}/${RAMDISK_FILE}"
     else
-        message "[\e[0;31mFAIL\e[0m] ${SYS_IMG_DIR}/${RAMDISK_FILE}"
+        message "[\033[0;31mFAIL\033[0m] ${SYS_IMG_DIR}/${RAMDISK_FILE}"
         msg+=("Ramdisk image cannot be found!")
     fi
 
     if [ -f "${SYS_IMG_DIR}/${SYSTEM_FILE}" ]; then
-        message "[\e[0;32mOK\e[0m]   ${SYS_IMG_DIR}/${SYSTEM_FILE}"
+        message "[\033[0;32mOK\033[0m]   ${SYS_IMG_DIR}/${SYSTEM_FILE}"
     else
-        message "[\e[0;31mFAIL\e[0m] ${SYS_IMG_DIR}/${SYSTEM_FILE}"
+        message "[\033[0;31mFAIL\033[0m] ${SYS_IMG_DIR}/${SYSTEM_FILE}"
         msg+=("System image cannot be found!")
     fi
 
     if [ -f "${EXEC_DIR}/${MKBOOTFS_FILE}" ]; then
-        message "[\e[0;32mOK\e[0m]   ${EXEC_DIR}/${MKBOOTFS_FILE}"
+        message "[\033[0;32mOK\033[0m]   ${EXEC_DIR}/${MKBOOTFS_FILE}"
     else
-        message "[\e[0;31mFAIL\e[0m] ${EXEC_DIR}/${MKBOOTFS_FILE}"
+        message "[\033[0;31mFAIL\033[0m] ${EXEC_DIR}/${MKBOOTFS_FILE}"
         msg+=("mkbootfs cannot be found. Please download a new setup package")
     fi
 
@@ -228,16 +274,16 @@ cleanup() {
 } # cleanup()
 
 printResult() {
-    if [ ${EUID} -ne 0 ]; then
-        echo -e "\nNOTE: You are running without root privileges, some functionality might be supressed.\nSee -h for more info\n"
+    if [ $(id -u) -ne 0 ]; then
+        println "\nNOTE: You are running without root privileges, some functionality might be supressed.\nSee -h for more info\n"
     fi
 
-    if [ ${SUCCESSES} -eq ${#SYS_IMG_DIRS[@]} ]; then
-        prefix="[\e[0;32mOK\e[0m]"
+    if [ ${SUCCESSES} -eq ${#SYS_IMG_DIRS[@]} ] && [ ${SUCCESSES} -gt 0 ]; then
+        prefix="[\033[0;32mOK\033[0m]"
     else
-        prefix="[\e[0;31mFAIL\e[0m]"
+        prefix="[\033[0;31mFAIL\033[0m]"
     fi
-    echo -e "${prefix} Success: ${SUCCESSES}/${#SYS_IMG_DIRS[@]}"
+    println "${prefix} Success: ${SUCCESSES}/${#SYS_IMG_DIRS[@]}"
 } # printResult()
 
 ##########################
@@ -257,7 +303,7 @@ change_ramdisk_props() {
     message "   Modyfying ${DEFAULT_PROP_FILE}"
 
     if [ ! -f "${EXEC_DIR}/${TMP_RAMDISK_DIR}/${DEFAULT_PROP_FILE}" ]; then
-        message "\e[0;31m${DEFAULT_PROP_FILE} is missing or you do not have access!\e[0m"
+        message "\033[0;31m${DEFAULT_PROP_FILE} is missing or you do not have access!\033[0m"
         abort
     fi
 
@@ -294,7 +340,7 @@ change_system_props() {
     message "   Modifying ${BUILD_PROP_FILE}"
 
     if [ ! -f "${EXEC_DIR}/${TMP_MOUNT_DIR}/${BUILD_PROP_FILE}" ]; then
-        message "\e[0;31m${BUILD_PROP_FILE} is missing!\e[0m"
+        message "\033[0;31m${BUILD_PROP_FILE} is missing!\033[0m"
         abort
     fi
 
@@ -331,17 +377,18 @@ run() {
         return
     fi
 
+    message "${BANNER}"
+
     for i in "${SYS_IMG_DIRS[@]}"; do
         SYS_IMG_DIR="${i}"
 
-        if [[ -z "${SYS_IMG_DIR}" ]] || [[ ! -d "${SYS_IMG_DIR}" ]]; then
+        if [ -z "${SYS_IMG_DIR}" ] || [ ! -d "${SYS_IMG_DIR}" ]; then
             message "Error in system image path: ${SYS_IMG_DIR}"
             continue
         fi
 
-        cd "${SYS_IMG_DIR}"
         message "Setup \"${SYS_IMG_DIR}\""
-        message "-------------------"
+        fmessage "------------------------------------"
 
         check_files
         prepare_filesystem
@@ -353,7 +400,7 @@ run() {
         message ""
 
         message "Process ${SYSTEM_FILE}"
-        if [ ${EUID} -eq 0 ]; then
+        if [ $(id -u) -eq 0 ]; then
             mount_system
             change_system_props
             unmount_system
@@ -364,7 +411,7 @@ run() {
 
         message "Cleanup"
         cleanup
-        message "-------------------"
+        fmessage "------------------------------------"
 
         ((SUCCESSES++))
     done

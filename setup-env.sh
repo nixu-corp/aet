@@ -3,10 +3,17 @@
 set -u
 
 # setup-env.sh variables
-read -d '' USAGE << "EOF"
-Usage: ./setup-env.sh [OPTIONS...]
-See -h for more info
-EOF
+USAGE="Usage: ./setup-env.sh [-s|--silent] [-e configuration file] [-m configuration file]"
+HELP_TEXT="
+OPTIONS
+-e                      Installs the environment and the necessary tools
+-m                      Modifies the environment to evade emulation detection
+-s, --silent            Silent mode, supresses all output except result
+-h                      Display this help and exit
+
+<configuration file>    The configuration file belonging to each script"
+HELP_MSG="${USAGE}\n${HELP_TEXT}"
+
 SETUP_TOOLS=0
 MODIFY_ENV=0
 
@@ -16,14 +23,15 @@ MODIFY_CONF=""
 
 parse_arguments() {
     if [ $# -eq 0 ]; then
-        echo "${USAGE}"
+        printf "${USAGE}\n"
+        printf "See -h for more info\n"
         exit
     fi
 
     while getopts ":hm:s:" opt ; do
         case $opt in
             h)
-                echo "${USAGE}"
+                printf "${HELP_MSG}\n"
                 exit
             ;;
             m)
@@ -35,8 +43,9 @@ parse_arguments() {
                 TOOLS_CONF=${OPTARG}
             ;;
             *)
-                echo "Invalid flag '-${OPTARG}'!"
-                echo "${USAGE}"
+                printf "Invalid flag '-${OPTARG}'!\n"
+                printf "${USAGE}\n"
+                printf "See -h for more info\n"
                 exit
             ;;
         esac
