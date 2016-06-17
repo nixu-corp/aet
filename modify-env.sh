@@ -14,6 +14,7 @@ set -u
 #   fmessage()
 #   error()
 #   abort()
+#   check_option_value()
 #   setup()
 #   parse_arguments()
 #   read_conf()
@@ -44,10 +45,12 @@ set -u
 # Global variables
 ####################
 
-USAGE="Usage: ./modify-env.sh [-s|--silent] <configuration file>"
+USAGE="Usage: ./modify-env.sh [-s|--silent] [-r sudo password] <configuration file>"
 HELP_TEXT="
 OPTIONS
--s, --silent            Silent mode, supresses all output except result
+-r, --root              By giving root privileges the script can utilize all
+                        functitonalities
+-s, --silent            Silent mode, suppresses all output except result
 -h, --help              Display this help and exit
 
 <configuration file>    Configuration file for modify-env script"
@@ -64,6 +67,7 @@ BANNER="
 
 CONF_FILE=""
 SYS_IMG_FILE=""
+SUDO_PASSWORD=""
 
 WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*#"
@@ -132,6 +136,19 @@ abort() {
     exit
 } # abort()
 
+check_option_value() {
+    local index="${1}"
+    index=$((index + 1))
+
+    if [ ${index} -gt $(($#)) ] \
+    || [ $(expr "${!index}" : "^-.*$") -gt 0 ] \
+    || [ $(expr "${!index}" : "^$") -gt 0 ]; then
+        return 1
+    else
+        return 0
+    fi
+} # check_option_value()
+
 setup() {
     default_prop_changes["ro.secure"]="1"
     default_prop_changes["ro.bootimage.build.fingerprint"]="fingerprint"
@@ -155,14 +172,25 @@ parse_arguments() {
         exit
     fi
 
-    for i in $@; do
-        if [ "${i}" == "-s" ] || [ "${i}" == "--silent" ]; then
+    for ((i = 1; i <= $#; i++)); do
+        if [ "${!i}" == "-r" ] || [ "${!i}" == "--root" ]; then
+            i=$((i + 1))
+            check_option_value ${i} $@
+            if [ $? -eq 1 ]; then
+                error "No sudo password given!\n"
+                error "${USAGE}"
+                error "See -h for more info"
+                exit
+            else
+                SUDO_PASSWORD="${!i}"
+            fi
+        elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
-        elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
+        elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             println "${HELP_MSG}"
             exit
         else
-            CONF_FILE="${i}"
+            CONF_FILE="${!i}"
         fi
     done
 
@@ -186,7 +214,7 @@ read_conf() {
         if [ ! -z "${sys_img_dir_file_capture}" ]; then
             SYS_IMG_FILE="${sys_img_dir_file_capture}"
         else
-            error "Unknown configuration key found!"
+            error "Unknown configuration found: ${line}"
             abort
         fi
     done < "${CONF_FILE}"
@@ -268,14 +296,13 @@ prepare_filesystem() {
 cleanup() {
     message "   Removing temporary ramdisk directory"
     rm -r "${EXEC_DIR}/${TMP_RAMDISK_DIR}" &>/dev/null
-
     message "   Removing temporary mount directory"
-    rmdir "${EXEC_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
+    rm -r "${EXEC_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
 } # cleanup()
 
 printResult() {
-    if [ $(id -u) -ne 0 ]; then
-        println "\nNOTE: You are running without root privileges, some functionality might be supressed.\nSee -h for more info\n"
+    if [ -z "${SUDO_PASSWORD}" ]; then
+        println "\nNOTE: You are running without root privileges, some functionality might be suppressed.\nPlease use the --root flag.\nSee -h for more info\n"
     fi
 
     if [ ${SUCCESSES} -eq ${#SYS_IMG_DIRS[@]} ] && [ ${SUCCESSES} -gt 0 ]; then
@@ -285,88 +312,6 @@ printResult() {
     fi
     println "${prefix} Success: ${SUCCESSES}/${#SYS_IMG_DIRS[@]}"
 } # printResult()
-
-##########################
-# Ramdisk.img functions
-##########################
-
-decompress_ramdisk() {
-    message "   Decompressing ramdisk disc image"
-    cd "${EXEC_DIR}/${TMP_RAMDISK_DIR}"
-    {
-        gzip -dc "${SYS_IMG_DIR}/${RAMDISK_FILE}" | cpio -i
-    } &>/dev/null
-    cd ..
-} # decompress_ramdisk()
-
-change_ramdisk_props() {
-    message "   Modyfying ${DEFAULT_PROP_FILE}"
-
-    if [ ! -f "${EXEC_DIR}/${TMP_RAMDISK_DIR}/${DEFAULT_PROP_FILE}" ]; then
-        message "\033[0;31m${DEFAULT_PROP_FILE} is missing or you do not have access!\033[0m"
-        abort
-    fi
-
-    cd "${EXEC_DIR}/${TMP_RAMDISK_DIR}"
-    local default_new="default_new.prop"
-    while [ -f ${default_new} ]; do
-        default_new="0${default_new}"
-    done
-
-    for key in "${!default_prop_changes[@]}"; do
-        value=${default_prop_changes[${key}]}
-        sed "s/${key}=.*/${key}=${value}/" "default.prop" > ${default_new}
-        mv ${default_new} "default.prop"
-    done
-
-    cd ..
-} # change_ramdisk_props()
-
-compress_ramdisk() {
-    message "   Compressing to ramdisk disc image"
-    ("${EXEC_DIR}/${MKBOOTFS_FILE}" "${EXEC_DIR}/${TMP_RAMDISK_DIR}" | gzip > "${SYS_IMG_DIR}/${RAMDISK_FILE}")
-} # compress_ramdisk()
-
-#########################
-# System.img functions
-#########################
-
-mount_system() {
-    message "   Mounting system disc image"
-    mount "${SYS_IMG_DIR}/${SYSTEM_FILE}" "${EXEC_DIR}/${TMP_MOUNT_DIR}"
-} # mount_system()
-
-change_system_props() {
-    message "   Modifying ${BUILD_PROP_FILE}"
-
-    if [ ! -f "${EXEC_DIR}/${TMP_MOUNT_DIR}/${BUILD_PROP_FILE}" ]; then
-        message "\033[0;31m${BUILD_PROP_FILE} is missing!\033[0m"
-        abort
-    fi
-
-    cd "${EXEC_DIR}/${TMP_MOUNT_DIR}"
-    local build_new="build_new.prop"
-    while [ -f ${build_new} ]; do
-        build_new="0${build_new}"
-    done
-
-    for key in "${!build_prop_changes[@]}"; do
-        value=${build_prop_changes[${key}]}
-        sed "s/${key}=.*/${key}=${value}/" "build.prop" > ${build_new}
-        mv ${build_new} "build.prop"
-    done
-
-    cd ..
-} # change_system_props()
-
-unmount_system() {
-    message "   Unmounting system disc image"
-    local mountOutput="$(mount | grep "${EXEC_DIR}/${TMP_MOUNT_DIR}")"
-    until [ -z "${mountOutput}" ]; do
-        umount "${EXEC_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
-        mountOutput="$(mount | grep "${EXEC_DIR}/${TMP_MOUNT_DIR}")"
-    done
-} # unmount_system()
 
 ########################
 # Run loop
@@ -394,18 +339,14 @@ run() {
         prepare_filesystem
 
         message "Process ${RAMDISK_FILE}"
-        decompress_ramdisk
-        change_ramdisk_props
-        compress_ramdisk
+        ./modify-ramdisk-img.sh ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
         message ""
 
         message "Process ${SYSTEM_FILE}"
-        if [ $(id -u) -eq 0 ]; then
-            mount_system
-            change_system_props
-            unmount_system
+        if [ ! -z "${SUDO_PASSWORD}" ]; then
+            printf "${SUDO_PASSWORD}\n" | sudo -k -S -s ./modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
         else
-            message "No root privileges, skipping..."
+            message "   No root privileges, skipping..."
         fi
         message ""
 

@@ -51,7 +51,7 @@ set -u
 USAGE="Usage: ./setup-tools.sh [-s|--silent] <configuration file>"
 HELP_TEXT="
 OPTIONS
--s, --silent            Silent mode, supresses all output except result
+-s, --silent            Silent mode, suppresses all output except result
 -h, --help              Display this help and exit
 
 <configuration file>    Configuration file for setup-tools script"
@@ -458,6 +458,7 @@ extract_package_info() {
 
     if [ ! -z ${desc_capture} ]; then
         package_desc="${desc_capture}"
+        package_desc=$(printf "${package_desc}" | sed "s/[[:blank:]]*$//")
     fi
 } # extract_package_info()
 
