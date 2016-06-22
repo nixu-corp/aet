@@ -4,7 +4,8 @@ DOWNLOAD_DIR=""
 ASDK_DIR=""
 SDK_FILE=""
 
-APIS=()
+A_APIS=()
+G_APIS=()
 
 SPIN[0]="-"
 SPIN[1]="\\"
@@ -12,17 +13,9 @@ SPIN[2]="|"
 SPIN[3]="/"
 
 parse_arguments() {
-    if [ $# -lt 3 ]; then
-        exit 1
-    fi
-
     DOWNLOAD_DIR="$1"
     ASDK_DIR="$2"
     SDK_FILE="$3"
-
-    printf "$1\n"
-    printf "$2\n"
-    printf "$3\n"
 
     DOWNLOAD_DIR=${DOWNLOAD_DIR%/}
     ASDK_DIR=${ASDK_DIR%/}
@@ -31,7 +24,25 @@ parse_arguments() {
     mkdir -p ${ASDK_DIR} &>/dev/null
 
     for ((i = 4; i <= $#; i++)); do
-        APIS+=("${!i}")
+        if [ "${!i}" == "-a" ]; then
+            i=$((i + 1))
+            for ((j=${i}; j <= $#; j++)); do
+                if [ "${!j}" == "-g" ]; then
+                    i=$((j - 1))
+                    break
+                fi
+                A_APIS+=("${!j}")
+            done  
+        elif [ "${!i}" == "-g" ]; then
+            i=$((i + 1))
+            for ((j = ${i}; j <= $#; j++)); do
+                if [ "${!j}" == "-a" ]; then
+                    i=$((j - 1))
+                    break
+                fi
+                G_APIS+=("${!j}")
+            done
+        fi
     done
 } # parse_arguments()
 
@@ -95,8 +106,12 @@ install_sdk_packages() {
     packages[1]="tools"
     packages[2]="build-tools-"
     
-    for sdk in ${APIS[@]}; do
-        packages+=("${sdk}")
+    for api in ${A_APIS[@]}; do
+        packages+=("${api}")
+    done
+
+    for api in ${G_APIS[@]}; do
+        packages+=("${api}")
     done
 
     grepstr="^\("

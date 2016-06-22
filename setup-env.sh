@@ -83,6 +83,15 @@ parse_arguments() {
             print_usage
         fi
     done
+
+    if [ ${SETUP_TOOLS} -eq 1 ] && [ ! -f ${TOOLS_CONF} ]; then
+        printf "Setup tools configuration file does not exist!\n"
+        exit 1
+    fi
+    if [ ${MODIFY_ENV} -eq 1 ] && [ ! -f ${MODIFY_CONF} ]; then
+        printf "Modify environment configuration file does not exist!\n"
+        exit 1
+    fi
 } # parse_arguments()
 
 check_root() {
@@ -113,7 +122,7 @@ setup_tools() {
             modifiers="${modifiers} --silent"
         fi
 
-        ./setup-tools.sh ${modifiers} ${TOOLS_CONF}
+        ./setup/setup-tools.sh ${modifiers} ${TOOLS_CONF}
     fi
 } # setup_tools()
 
@@ -127,7 +136,7 @@ modify_env() {
             modifiers="${modifiers} --root ${ROOT_PASSWORD}"
         fi
 
-        ./modify-env.sh ${modifiers} ${MODIFY_CONF}
+        ./modify/modify-env.sh ${modifiers} ${MODIFY_CONF}
     fi
 } # modify_env()
 

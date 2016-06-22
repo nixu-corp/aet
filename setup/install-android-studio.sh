@@ -21,7 +21,11 @@ parse_arguments() {
     DOWNLOAD_DIR=${DOWNLOAD_DIR%/}
     ASTUDIO_DIR=${ASTUDIO_DIR%/}
 
-    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
+    if [ ! -d ${DOWNLOAD_DIR} ]; then
+        printf "Download directory not found!\n"
+        exit
+    fi
+
     mkdir -p ${ASTUDIO_DIR} &>/dev/null
 } # parse_arguments()
 

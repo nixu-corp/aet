@@ -73,7 +73,8 @@ WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*#"
 SYS_IMG_REGEX="^system_img_dir_file[[:blank:]]*=[[:blank:]]*\(.*\)"
 
-EXEC_DIR="$(pwd)"
+EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 TMP_RAMDISK_DIR="ramdisk"
 TMP_MOUNT_DIR="mount"
 SYS_IMG_DIR=""
@@ -257,10 +258,11 @@ check_files() {
         msg+=("System image cannot be found!")
     fi
 
-    if [ -f "${EXEC_DIR}/${MKBOOTFS_FILE}" ]; then
-        message "[\033[0;32mOK\033[0m]   ${EXEC_DIR}/${MKBOOTFS_FILE}"
+    ROOT_DIR=${ROOT_DIR%/}
+    if [ -f "${ROOT_DIR}/${MKBOOTFS_FILE}" ]; then
+        message "[\033[0;32mOK\033[0m]   ${ROOT_DIR}/${MKBOOTFS_FILE}"
     else
-        message "[\033[0;31mFAIL\033[0m] ${EXEC_DIR}/${MKBOOTFS_FILE}"
+        message "[\033[0;31mFAIL\033[0m] ${ROOT_DIR}/${MKBOOTFS_FILE}"
         msg+=("mkbootfs cannot be found. Please download a new setup package")
     fi
 
@@ -277,17 +279,17 @@ check_files() {
 prepare_filesystem() {
     message "Creating temporary directories"
 
-    while [ -d "${EXEC_DIR}/${TMP_RAMDISK_DIR}" ]; do
+    while [ -d "${ROOT_DIR}/${TMP_RAMDISK_DIR}" ]; do
         TMP_RAMDISK_DIR="${TMP_RAMDISK_DIR}0"
     done
-    message "   ${EXEC_DIR}/${TMP_RAMDISK_DIR}"
-    mkdir -p "${EXEC_DIR}/${TMP_RAMDISK_DIR}"
+    message "   ${ROOT_DIR}/${TMP_RAMDISK_DIR}"
+    mkdir -p "${ROOT_DIR}/${TMP_RAMDISK_DIR}"
 
-    while [ -d "${EXEC_DIR}/${TMP_MOUNT_DIR}" ]; do
+    while [ -d "${ROOT_DIR}/${TMP_MOUNT_DIR}" ]; do
         TMP_MOUNT_DIR="${TMP_MOUNT_DIR}0"
     done
-    message "   ${EXEC_DIR}/${TMP_MOUNT_DIR}"
-    mkdir -p "${EXEC_DIR}/${TMP_MOUNT_DIR}"
+    message "   ${ROOT_DIR}/${TMP_MOUNT_DIR}"
+    mkdir -p "${ROOT_DIR}/${TMP_MOUNT_DIR}"
 
     message ""
 } # prepare_filesystem()
@@ -295,14 +297,14 @@ prepare_filesystem() {
 
 cleanup() {
     message "   Removing temporary ramdisk directory"
-    rm -r "${EXEC_DIR}/${TMP_RAMDISK_DIR}" &>/dev/null
+    rm -r "${ROOT_DIR}/${TMP_RAMDISK_DIR}" &>/dev/null
     message "   Removing temporary mount directory"
-    rm -r "${EXEC_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
+    rm -r "${ROOT_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
 } # cleanup()
 
 printResult() {
     if [ -z "${SUDO_PASSWORD}" ]; then
-        println "\nNOTE: You are running without root privileges, some functionality might be suppressed.\nPlease use the --root flag.\nSee -h for more info\n"
+        println "NOTE: You are running without root privileges, some functionality might be suppressed.\nPlease use the --root flag.\nSee -h for more info\n"
     fi
 
     if [ ${SUCCESSES} -eq ${#SYS_IMG_DIRS[@]} ] && [ ${SUCCESSES} -gt 0 ]; then
@@ -332,19 +334,20 @@ run() {
             continue
         fi
 
-        message "Setup \"${SYS_IMG_DIR}\""
         fmessage "------------------------------------"
+        message "Setup \"${SYS_IMG_DIR}\""
+        message ""
 
         check_files
         prepare_filesystem
 
         message "Process ${RAMDISK_FILE}"
-        ./modify-ramdisk-img.sh ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
+        ${EXEC_DIR}/modify-ramdisk-img.sh ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
         message ""
 
         message "Process ${SYSTEM_FILE}"
         if [ ! -z "${SUDO_PASSWORD}" ]; then
-            printf "${SUDO_PASSWORD}\n" | sudo -k -S -s ./modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
+            printf "${SUDO_PASSWORD}\n" | sudo -k -S -s ${EXEC_DIR}/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
         else
             message "   No root privileges, skipping..."
         fi
@@ -353,6 +356,7 @@ run() {
         message "Cleanup"
         cleanup
         fmessage "------------------------------------"
+        message ""
 
         ((SUCCESSES++))
     done

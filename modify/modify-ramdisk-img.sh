@@ -1,6 +1,7 @@
 #!/bin/bash
 
-EXEC_DIR="$(pwd)"
+EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 SYS_IMG_DIR=""
 TMP_RAMDISK_DIR=""
 
@@ -22,7 +23,7 @@ parse_arguments() {
 
 decompress_ramdisk() {
     printf "   Decompressing ramdisk disc image\n"
-    cd "${EXEC_DIR}/${TMP_RAMDISK_DIR}"
+    cd "${ROOT_DIR}/${TMP_RAMDISK_DIR}"
     {
         gzip -dc "${SYS_IMG_DIR}/${RAMDISK_FILE}" | cpio -i
     } &>/dev/null
@@ -32,12 +33,12 @@ decompress_ramdisk() {
 change_ramdisk_props() {
     printf "   Modyfying ${DEFAULT_PROP_FILE}\n"
 
-    if [ ! -f "${EXEC_DIR}/${TMP_RAMDISK_DIR}/${DEFAULT_PROP_FILE}" ]; then
+    if [ ! -f "${ROOT_DIR}/${TMP_RAMDISK_DIR}/${DEFAULT_PROP_FILE}" ]; then
         printf "\033[0;31m${DEFAULT_PROP_FILE} is missing or you do not have access!\033[0m\n"
         exit
     fi
 
-    cd "${EXEC_DIR}/${TMP_RAMDISK_DIR}"
+    cd "${ROOT_DIR}/${TMP_RAMDISK_DIR}"
     local default_new="default_new.prop"
     while [ -f ${default_new} ]; do
         default_new="0${default_new}"
@@ -54,7 +55,7 @@ change_ramdisk_props() {
 
 compress_ramdisk() {
     printf "   Compressing to ramdisk disc image\n"
-    ("${EXEC_DIR}/${MKBOOTFS_FILE}" "${EXEC_DIR}/${TMP_RAMDISK_DIR}" | gzip > "${SYS_IMG_DIR}/${RAMDISK_FILE}")
+    ("${ROOT_DIR}/${MKBOOTFS_FILE}" "${ROOT_DIR}/${TMP_RAMDISK_DIR}" | gzip > "${SYS_IMG_DIR}/${RAMDISK_FILE}")
 } # compress_ramdisk()
 
 parse_arguments $@

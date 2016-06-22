@@ -5,9 +5,9 @@ set -u
 ################################
 # Outline
 ################################
-# Global variables
+# Variables
 #
-# General functions
+# Functions
 #   loading()
 #   clear_print()
 #   clear_println()
@@ -17,23 +17,6 @@ set -u
 #   read_conf()
 #   check_filesystem()
 #   cleanup()
-#
-# Core Android SDK functions
-#   install_android_sdk()
-#   download_android_sdk()
-#   unzip_android_sdk()
-#   install_sdk_packages()
-#   get_packages_info()
-#   extract_package_info()
-#   process_package_info()
-#   install_package()
-#
-# Android SDK API's functions
-#   install_sdk_sys_imgs()
-#   download_sys_img_xml()
-#   parse_sys_img_xml()
-#   download_sys_img()
-#   unzip_sys_img()
 #
 # MAIN; Entry point
 #
@@ -64,6 +47,7 @@ BANNER="
 ANDROID_SDK_SYS_IMG_BASE_URL="https://dl.google.com/android/repository/sys-img"
 ANDROID_SDK_SYS_IMG_URL=""
 
+EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONF_FILE=""
 ASTUDIO_DIR=""
 ASDK_DIR=""
@@ -72,9 +56,11 @@ STUDIO_FILE="android-studio"
 SDK_FILE="android-sdk"
 XML_FILE="sys-img"
 SYS_IMG_FILE="sys-img"
-APIS=()
+A_APIS=()
+G_APIS=()
 A_PLATFORMS=()
 G_PLATFORMS=()
+AVD_CONF_FILES=()
 
 # Configuration variables
 WHITESPACE_REGEX="^[[:blank:]]*$"
@@ -83,8 +69,10 @@ DOWNLOAD_REGEX="^download_dir[[:blank:]]*=[[:blank:]]*\(.*\)"
 A_STUDIO_REGEX="^android_studio_installation_dir[[:blank:]]*=[[:blank:]]*\(.*\)"
 A_SDK_REGEX="^android_sdk_installation_dir[[:blank:]]*=[[:blank:]]*\(.*\)"
 A_APIS_REGEX="^android_apis[[:blank:]]*=[[:blank:]]*\(.*\)"
+G_APIS_REGEX="^google_apis[[:blank:]]*=[[:blank:]]*\(.*\)"
 A_PLATFORM_REGEX="^android_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
 G_PLATFORM_REGEX="^google_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
+AVD_CONF_REGEX="^avd_configuration_files[[:blank:]]*=[[:blank:]]*\(.*\)"
 
 SILENT_MODE=0
 
@@ -107,48 +95,18 @@ loading() {
     done
 } # loading()
 
-write() {
-    if [ ${SILENT_MODE} -eq 0 ]; then
-        if [ $# -ge 2 ]; then
-            printf "${1}" "${2}"
-        elif [ $# -eq 1 ]; then
-            printf "${1}"
-        fi
-    fi
-} # message()
-
-clear_print() {
-    write "\r$(tput el)"
-    write "${1}"
-} # clear_print()
-
-clear_println() {
-    clear_print "${1}"
-    write "\n"
-} # clear_println()
-
-clear_printf() {
-    write "\r$(tput el)"
-    write "%s" "${1}"
-} # clear_printf()
-
-clear_printfln() {
-    clear_printf "${1}"
-    write "\n"
-} # clear_printfln()
-
 parse_arguments() {
     if [ $# -eq 0 ] || [ $# -gt 2 ]; then
-        clear_println "${USAGE}"
-        clear_println "See -h for more info"
-        exit
+        printf "${USAGE}\n"
+        printf "See -h for more info\n"
+        exit 1
     fi
 
     for i in $@; do
         if [ "${i}" == "-s" ] || [ "${i}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
-            clear_println "${HELP_MSG}"
+            printf "${HELP_MSG}\n"
             exit
         else
             CONF_FILE="${i}"
@@ -156,7 +114,7 @@ parse_arguments() {
     done
 
     if [ ! -f ${CONF_FILE} ]; then
-        exit
+        exit 1
     fi
 } # parse_arguments()
 
@@ -175,8 +133,10 @@ read_conf() {
         local astudio_dir_capture=$(expr "${line}" : "${A_STUDIO_REGEX}")
         local asdk_dir_capture=$(expr "${line}" : "${A_SDK_REGEX}")
         local a_apis_capture=$(expr "${line}" : "${A_APIS_REGEX}")
+        local g_apis_capture=$(expr "${line}" : "${G_APIS_REGEX}")
         local a_platform_capture=$(expr "${line}" : "${A_PLATFORM_REGEX}")
         local g_platform_capture=$(expr "${line}" : "${G_PLATFORM_REGEX}")
+        local avd_conf_capture=$(expr "${line}" : "${AVD_CONF_REGEX}")
 
         if [ ! -z "${download_dir_capture}" ]; then
             DOWNLOAD_DIR="${download_dir_capture}"
@@ -186,16 +146,30 @@ read_conf() {
             ASDK_DIR="${asdk_dir_capture}"
         elif [ ! -z "${a_apis_capture}" ]; then
             IFS=","
-            read -r -a APIS <<< "${a_apis_capture}"
+            read -r -a A_APIS <<< "android-${a_apis_capture}"
+        elif [ ! -z "${g_apis_capture}" ]; then
+            IFS=","
+            read -r -a G_APIS <<< "addon-google_apis-google-${g_apis_capture}"
         elif [ ! -z "${a_platform_capture}" ]; then
             IFS=","
             read -r -a A_PLATFORMS <<< "${a_platform_capture}"
         elif [ ! -z "${g_platform_capture}" ]; then
             IFS=","
             read -r -a G_PLATFORMS <<< "${g_platform_capture}"
+        elif [ ! -z "${avd_conf_capture}" ]; then
+            IFS=","
+            read -r -a AVD_CONF_FILES <<< "${avd_conf_capture}"
         fi
     done < "${CONF_FILE}"
-    
+
+    if [ -z "${DOWNLOAD_DIR}" ]; then
+        printf "Download directory has not been specified!\n"
+        exit 1
+    fi
+    if [ -z "${ASDK_DIR}" ]; then
+        printf "Android SDK directory has not been specified!\n"
+        exit 1
+    fi
 } # read_conf()
 
 check_filesystem() {
@@ -205,24 +179,22 @@ check_filesystem() {
     local zip_postfix="0"
     local tgz_postfix="0"
     local xml_postfix="0"
-    local astudio_postfix="-new"
-    local asdk_postfix="-new"
 
     DOWNLOAD_DIR="${DOWNLOAD_DIR%/}"
     ASTUDIO_DIR="${ASTUDIO_DIR%/}"
     ASDK_DIR="${ASDK_DIR%/}"
 
     if [ ! -d "${DOWNLOAD_DIR}" ]; then
-        clear_printfln "Download directory not found!"
-        exit
+        printf "Download directory not found!\n"
+        exit 1
     fi
 
     if [ -d "${ASTUDIO_DIR}" ]; then
-        clear_printfln "WARNING: Android studio installation directory already exists, creating new one with postfix: '${astudio_postfix}'!"
+        printf "WARNING: Android studio installation directory already exists, creating new one with postfix: '${astudio_postfix}'!\n"
     fi
 
     if [ -d "${ASDK_DIR}" ]; then
-        clear_printfln "WARNING: Android SDK installation directory already exists, creating new one with postfix: '${asdk_postfix}'!"
+        printf "WARNING: Android SDK installation directory already exists, creating new one with postfix: '${asdk_postfix}'!\n"
     fi
 
     while [ -f "${DOWNLOAD_DIR}/${STUDIO_FILE}${zip_ext}" ]; do
@@ -244,108 +216,23 @@ check_filesystem() {
         XML_FILE="${XML_FILE}${xml_postfix}"
     done
     XML_FILE="${XML_FILE}${xml_ext}"
-
-    while [ -d ${ASTUDIO_DIR} ]; do
-        ASTUDIO_DIR="${ASTUDIO_DIR}${astudio_postfix}"
-    done
-
-    while [ -d ${ASDK_DIR} ]; do
-        ASDK_DIR="${ASDK_DIR}${asdk_postfix}"
-    done
 } # check_filesystem()
 
 cleanup() {
-    clear_printfln "Deleting files..."
+    printf "\n"
+    printf "%s\n" "---------------------------------------"
+    printf "%s\n" "Cleanup"
+    printf "%s\n" "---------------------------------------"
+    printf "\n"
+    printf "Deleting ${STUDIO_FILE}\n"
     rm "${DOWNLOAD_DIR}/${STUDIO_FILE}" &>/dev/null
+    printf "Deleting ${SDK_FILE}\n"
     rm "${DOWNLOAD_DIR}/${SDK_FILE}"  &>/dev/null
+    printf "Deleting ${XML_FILE}\n"
     rm "${DOWNLOAD_DIR}/${XML_FILE}"  &>/dev/null
+    printf "Deleting ${SYS_IMG_FILE}\n"
     rm "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" &>/dev/null
 } # cleanup()
-
-#############################
-# Android SDK functions
-#############################
-install_sdk_sys_imgs() {
-    clear_printfln "---------------------------------------"
-    clear_printfln "Installing Android SDK system images"
-    clear_printfln "---------------------------------------"
-    clear_printfln ""
-    clear_printfln "Installing Android API system images"
-    local tag_id=""
-
-    if [ ${#A_PLATFORMS[@]} -gt 0 ]; then
-        download_sys_img_xml "android"
-        for platform in ${A_PLATFORMS[@]}; do
-            local api="$(printf "${platform}" | cut -d ":" -f 1)"
-            local plat="$(printf "${platform}" | cut -d ":" -f 2)"
-            parse_sys_img_xml ${api} ${plat}
-            download_sys_img "android"
-            unzip_sys_img ${api} ${plat} ${tag_id}
-        done
-    fi
-
-    if [ ${#G_PLATFORMS[@]} -gt 0 ]; then
-        clear_printfln ""
-        clear_printfln "Installing Google API system images"
-        download_sys_img_xml "google_apis"
-        for platform in ${G_PLATFORMS[@]}; do
-            local api="$(printf "${platform}" | cut -d ":" -f 1)"
-            local plat="$(printf "${platform}" | cut -d ":" -f 2)"
-            parse_sys_img_xml ${api} ${plat}
-            download_sys_img "google_apis"
-            unzip_sys_img ${api} ${plat} ${tag_id}
-        done
-    fi
-    clear_printfln ""
-} # install_sdk_sys_imgs()
-
-download_sys_img_xml() {
-    local provider=${1}
-
-    wget -q --show-progress -O "${DOWNLOAD_DIR}/${XML_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/sys-img.xml"
-} # download_sys_img_xml()
-
-parse_sys_img_xml() {
-    local api_level="$(printf "${1}" | cut -d "-" -f 2)"
-    local platform="${2}"
-    local platform_n=""
-
-    if [ ${api_level} == "23N" ]; then
-        platform_n=" and x:codename"
-    else
-        platform_n=" and not(x:codename)"
-    fi
-    api_level=${api_level%N}
-
-    if [ "${platform}" == "arm" ]; then
-        platform="armeabi-v7a"
-    fi
-
-    local xmlstarlet_output=$(xmlstarlet sel -N x=http://schemas.android.com/sdk/android/sys-img/3 -T -t -m "//x:system-image[x:api-level='${api_level}' and x:abi='${platform}' ${platform_n}]" -v "concat(x:archives/x:archive/x:url, '|', x:tag-id )" -n ${DOWNLOAD_DIR}/${XML_FILE})
-
-    ANDROID_SDK_SYS_IMG_URL="$(printf "${xmlstarlet_output}" | cut -d "|" -f 1)"
-    tag_id="$(printf "${xmlstarlet_output}" | cut -d "|" -f 2)"
-} # parse_sys_img_xml()
-
-download_sys_img() {
-    local provider=${1}
-
-    wget -q --show-progress -O "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/${ANDROID_SDK_SYS_IMG_URL}"
-} # download_sys_img()
-
-unzip_sys_img() {
-    local api=${1}
-    local platform=${2}
-    local path="${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/${api}/${tag_id}/"
-
-    loading "Unzipping ${SYS_IMG_FILE}" &
-    mkdir -p ${path} &>/dev/null
-    unzip "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" -d ${path} &>/dev/null
-    kill $!
-    trap 'kill $1' SIGTERM
-    clear_printfln "[Unzipping ${SYS_IMG_FILE}] Done."
-} # unzip_sys_img()
-
 
 ##########################
 # MAIN; Entry point
@@ -353,11 +240,12 @@ unzip_sys_img() {
 parse_arguments $@
 read_conf
 check_filesystem
-clear_println "${BANNER}"
-./install_android_studio.sh ${DOWNLOAD_DIR} ${ASTUDIO_DIR} ${STUDIO_FILE}
-./install_android_sdk.sh ${DOWNLOAD_DIR} ${ASDK_DIR} ${SDK_FILE} ${APIS[@]}
-install_sdk_sys_imgs
+printf "${BANNER}\n"
+#${EXEC_DIR}/install-android-studio.sh ${DOWNLOAD_DIR} ${ASTUDIO_DIR} ${STUDIO_FILE}
+${EXEC_DIR}/install-android-sdk.sh ${DOWNLOAD_DIR} ${ASDK_DIR} ${SDK_FILE} -a "${A_APIS[@]}" -g "${G_APIS[@]}"
+${EXEC_DIR}/install-android-sys-imgs.sh ${DOWNLOAD_DIR} ${ASDK_DIR} -a "${A_PLATFORMS[@]}" -g "${G_PLATFORMS[@]}"
+${EXEC_DIR}/install-avds.sh ${ASDK_DIR} "${AVD_CONF_FILES[@]}"
 cleanup
-clear_printfln "-----------------------------------"
-clear_printfln "Done."
-clear_printfln ""
+printf "%s\n" "-----------------------------------"
+printf "Done.\n"
+printf "\n"
