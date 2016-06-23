@@ -55,7 +55,7 @@ change_ramdisk_props() {
 
 compress_ramdisk() {
     printf "   Compressing to ramdisk disc image\n"
-    ("${ROOT_DIR}/${MKBOOTFS_FILE}" "${ROOT_DIR}/${TMP_RAMDISK_DIR}" | gzip > "${SYS_IMG_DIR}/${RAMDISK_FILE}")
+    ("${ROOT_DIR}/bin/${MKBOOTFS_FILE}" "${ROOT_DIR}/${TMP_RAMDISK_DIR}" | gzip > "${SYS_IMG_DIR}/${RAMDISK_FILE}")
 } # compress_ramdisk()
 
 parse_arguments $@

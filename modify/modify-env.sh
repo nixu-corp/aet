@@ -259,10 +259,10 @@ check_files() {
     fi
 
     ROOT_DIR=${ROOT_DIR%/}
-    if [ -f "${ROOT_DIR}/${MKBOOTFS_FILE}" ]; then
-        message "[\033[0;32mOK\033[0m]   ${ROOT_DIR}/${MKBOOTFS_FILE}"
+    if [ -f "${ROOT_DIR}/bin/${MKBOOTFS_FILE}" ]; then
+        message "[\033[0;32mOK\033[0m]   ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
     else
-        message "[\033[0;31mFAIL\033[0m] ${ROOT_DIR}/${MKBOOTFS_FILE}"
+        message "[\033[0;31mFAIL\033[0m] ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
         msg+=("mkbootfs cannot be found. Please download a new setup package")
     fi
 

@@ -15,14 +15,15 @@ OPTIONS
 <configuration file>    The configuration file belonging to each script"
 HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
+EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
+
 ROOT=0
 SILENT_MODE=0
 SETUP_TOOLS=0
 MODIFY_ENV=0
 
 ROOT_PASSWORD=""
-
-# setup-tools.sh variables
 TOOLS_CONF=""
 MODIFY_CONF=""
 
@@ -122,7 +123,7 @@ setup_tools() {
             modifiers="${modifiers} --silent"
         fi
 
-        ./setup/setup-tools.sh ${modifiers} ${TOOLS_CONF}
+        ${ROOT_DIR}/setup/setup-tools.sh ${modifiers} ${TOOLS_CONF}
     fi
 } # setup_tools()
 
@@ -136,7 +137,7 @@ modify_env() {
             modifiers="${modifiers} --root ${ROOT_PASSWORD}"
         fi
 
-        ./modify/modify-env.sh ${modifiers} ${MODIFY_CONF}
+        ${ROOT_DIR}/modify/modify-env.sh ${modifiers} ${MODIFY_CONF}
     fi
 } # modify_env()
 
