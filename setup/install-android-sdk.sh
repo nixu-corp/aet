@@ -1,16 +1,14 @@
 #!/bin/bash
 
+EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
+source ${EXEC_DIR}/setup-utilities.sh
+
 DOWNLOAD_DIR=""
 ASDK_DIR=""
 SDK_FILE=""
 
 A_APIS=()
 G_APIS=()
-
-SPIN[0]="-"
-SPIN[1]="\\"
-SPIN[2]="|"
-SPIN[3]="/"
 
 parse_arguments() {
     DOWNLOAD_DIR="$1"
@@ -46,39 +44,18 @@ parse_arguments() {
     done
 } # parse_arguments()
 
-loading() {
-    local message=${1}
-    while true; do
-        for s in "${SPIN[@]}"; do
-            printf "\r$(tput el)"
-            printf "%s" "[${message}] ${s}"
-            sleep 0.1
-        done
-    done
-} # loading()
-
 install_android_sdk() {
     printf "%s\n" "---------------------------------------"
     printf "%s\n" "Installing Android SDK"
     printf "%s\n" "---------------------------------------"
-    download_android_sdk
-    unzip_android_sdk
+    download_file "https://dl.google.com/android/android-sdk_r22.0.5-linux.tgz" "${DOWNLOAD_DIR}" "${SDK_FILE}"
+    if [ $? -ne 0 ]; then exit 1; fi
+    check_downloaded_file "${DOWNLOAD_DIR}/${SDK_FILE}"
+    if [ $? -ne 0 ]; then exit 1; fi
+    unzip_file "${DOWNLOAD_DIR}" "${SDK_FILE}" "${ASDK_DIR}"
+    if [ $? -ne 0 ]; then exit 1; fi
     printf "%s\n" ""
 } # install_android_sdk()
-
-download_android_sdk() {
-    printf "%s\n" "Downloading: ${DOWNLOAD_DIR}/${SDK_FILE}"
-    wget -q --show-progress -O "${DOWNLOAD_DIR}/${SDK_FILE}" "https://dl.google.com/android/android-sdk_r22.0.5-linux.tgz"
-} # download_android_sdk()
-
-unzip_android_sdk() {
-    loading "Unzipping ${SDK_FILE}" &
-    tar -zxvf "${DOWNLOAD_DIR}/${SDK_FILE}" -C "${ASDK_DIR}" &>/dev/null
-    kill $!
-    trap 'kill $1' SIGTERM
-    printf "\r$(tput el)"
-    printf "%s\n" "[Unzipping ${SDK_FILE}] Done."
-} # unzip_android_sdk
 
 install_sdk_packages() {
     printf "%s\n" "---------------------------------------"
@@ -262,7 +239,6 @@ install_package() {
     printf "\r$(tput el)"
     printf "%s\n" "Installed ${package_desc}"
 } # install_package()
-
 
 parse_arguments $@
 install_android_sdk

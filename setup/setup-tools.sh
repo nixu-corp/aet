@@ -26,6 +26,9 @@ set -u
 # Global variables
 ###################
 
+EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source ${EXEC_DIR}/setup-utilities.sh
+
 USAGE="Usage: ./setup-tools.sh [-s|--silent] <configuration file>"
 HELP_TEXT="
 OPTIONS
@@ -47,15 +50,14 @@ BANNER="
 ANDROID_SDK_SYS_IMG_BASE_URL="https://dl.google.com/android/repository/sys-img"
 ANDROID_SDK_SYS_IMG_URL=""
 
-EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONF_FILE=""
 ASTUDIO_DIR=""
 ASDK_DIR=""
 DOWNLOAD_DIR=""
-STUDIO_FILE="android-studio"
-SDK_FILE="android-sdk"
-XML_FILE="sys-img"
-SYS_IMG_FILE="sys-img"
+STUDIO_FILE="android-studio-ide-143.2915827-linux.zip"
+SDK_FILE="android-sdk_r22.0.5-linux.tgz"
+XML_FILE="sys-img.xml"
+SYS_IMG_FILE="sys-img.zip"
 A_APIS=()
 G_APIS=()
 A_PLATFORMS=()
@@ -76,24 +78,9 @@ AVD_CONF_REGEX="^avd_configuration_files[[:blank:]]*=[[:blank:]]*\(.*\)"
 
 SILENT_MODE=0
 
-SPIN[0]="-"
-SPIN[1]="\\"
-SPIN[2]="|"
-SPIN[3]="/"
-
 #######################
 # General functions
 #######################
-
-loading() {
-    local message=${1}
-    while true; do
-        for s in "${SPIN[@]}"; do
-            clear_printf "[${message}] ${s}"
-            sleep 0.1
-        done
-    done
-} # loading()
 
 parse_arguments() {
     if [ $# -eq 0 ] || [ $# -gt 2 ]; then
@@ -173,13 +160,6 @@ read_conf() {
 } # read_conf()
 
 check_filesystem() {
-    local zip_ext=".zip"
-    local tgz_ext=".tgz"
-    local xml_ext=".xml"
-    local zip_postfix="0"
-    local tgz_postfix="0"
-    local xml_postfix="0"
-
     DOWNLOAD_DIR="${DOWNLOAD_DIR%/}"
     ASTUDIO_DIR="${ASTUDIO_DIR%/}"
     ASDK_DIR="${ASDK_DIR%/}"
@@ -190,32 +170,12 @@ check_filesystem() {
     fi
 
     if [ -d "${ASTUDIO_DIR}" ]; then
-        printf "WARNING: Android studio installation directory already exists, creating new one with postfix: '${astudio_postfix}'!\n"
+        printf "WARNING: Android studio installation directory already exists, will overwrite!\n"
     fi
 
     if [ -d "${ASDK_DIR}" ]; then
-        printf "WARNING: Android SDK installation directory already exists, creating new one with postfix: '${asdk_postfix}'!\n"
+        printf "WARNING: Android SDK installation directory already exists, will overwrite!\n"
     fi
-
-    while [ -f "${DOWNLOAD_DIR}/${STUDIO_FILE}${zip_ext}" ]; do
-        STUDIO_FILE="${STUDIO_FILE}${zip_postfix}"
-    done
-    STUDIO_FILE="${STUDIO_FILE}${zip_ext}"
-
-    while [ -f "${DOWNLOAD_DIR}/${SYS_IMG_FILE}${zip_ext}" ]; do
-        SYS_IMG_FILE="${SYS_IMG_FILE}${zip_postfix}"
-    done
-    SYS_IMG_FILE="${SYS_IMG_FILE}${zip_ext}"
-
-    while [ -f "${DOWNLOAD_DIR}/${SDK_FILE}${tgz_ext}" ]; do
-        SDK_FILE="${SDK_FILE}${tgz_postfix}"
-    done
-    SDK_FILE="${SDK_FILE}${tgz_ext}"
-
-    while [ -f "${DOWNLOAD_DIR}/${XML_FILE}${xml_ext}" ]; do
-        XML_FILE="${XML_FILE}${xml_postfix}"
-    done
-    XML_FILE="${XML_FILE}${xml_ext}"
 } # check_filesystem()
 
 cleanup() {
@@ -224,14 +184,15 @@ cleanup() {
     printf "%s\n" "Cleanup"
     printf "%s\n" "---------------------------------------"
     printf "\n"
-    printf "Deleting ${STUDIO_FILE}\n"
+    printf "Deleting \033[1;35m${STUDIO_FILE}\033[0m\n"
     rm "${DOWNLOAD_DIR}/${STUDIO_FILE}" &>/dev/null
-    printf "Deleting ${SDK_FILE}\n"
+    printf "Deleting \033[1;35m${SDK_FILE}\033[0m\n"
     rm "${DOWNLOAD_DIR}/${SDK_FILE}"  &>/dev/null
-    printf "Deleting ${XML_FILE}\n"
+    printf "Deleting \033[1;35m${XML_FILE}\033[0m\n"
     rm "${DOWNLOAD_DIR}/${XML_FILE}"  &>/dev/null
-    printf "Deleting ${SYS_IMG_FILE}\n"
+    printf "Deleting \033[1;35m${SYS_IMG_FILE}\033[0m\n"
     rm "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" &>/dev/null
+    printf "\n"
 } # cleanup()
 
 ##########################
@@ -242,9 +203,28 @@ read_conf
 check_filesystem
 printf "${BANNER}\n"
 ${EXEC_DIR}/install-android-studio.sh ${DOWNLOAD_DIR} ${ASTUDIO_DIR} ${STUDIO_FILE}
-${EXEC_DIR}/install-android-sdk.sh ${DOWNLOAD_DIR} ${ASDK_DIR} ${SDK_FILE} -a "${A_APIS[@]}" -g "${G_APIS[@]}"
-${EXEC_DIR}/install-android-sys-imgs.sh ${DOWNLOAD_DIR} ${ASDK_DIR} -a "${A_PLATFORMS[@]}" -g "${G_PLATFORMS[@]}"
-${EXEC_DIR}/install-avds.sh ${ASDK_DIR} "${AVD_CONF_FILES[@]}"
+SKIP=$?
+
+if [ ${SKIP} -eq 0 ]; then
+    ${EXEC_DIR}/install-android-sdk.sh ${DOWNLOAD_DIR} ${ASDK_DIR} ${SDK_FILE} -a "${A_APIS[@]}" -g "${G_APIS[@]}"
+    SKIP=$?
+else
+    printf "Skipping Android SDK installation\n"
+fi
+
+if [ ${SKIP} -eq 0 ]; then
+    ${EXEC_DIR}/install-android-sys-imgs.sh ${DOWNLOAD_DIR} ${ASDK_DIR} -a "${A_PLATFORMS[@]}" -g "${G_PLATFORMS[@]}"
+    SKIP=$?
+else
+    printf "Skipping system image installation\n"
+fi
+
+if [ ${SKIP} -eq 0 ]; then
+    ${EXEC_DIR}/install-avds.sh ${ASDK_DIR} "${AVD_CONF_FILES[@]}"
+    SKIP=$?
+else
+    printf "Skipping AVD installation\n"
+fi
 cleanup
 printf "%s\n" "-----------------------------------"
 printf "Done.\n"

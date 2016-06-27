@@ -1,33 +1,21 @@
 #!/bin/bash
 
+EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
+source ${EXEC_DIR}/setup-utilities.sh
+
 SILENT_MODE=0
 
 DOWNLOAD_DIR=""
 ASDK_DIR=""
 
-XML_FILE="sys-img"
-SYS_IMG_FILE="sys-img"
+XML_FILE="sys-img.xml"
+SYS_IMG_FILE=""
 
 ANDROID_SDK_SYS_IMG_BASE_URL="https://dl.google.com/android/repository/sys-img"
 ANDROID_SDK_SYS_IMG_URL=""
 
 A_PLATFORMS=()
 G_PLATFORMS=()
-
-SPIN[0]="-"
-SPIN[1]="\\"
-SPIN[2]="|"
-SPIN[3]="/"
-
-loading() {
-    local message=${1}
-    while true; do
-        for s in "${SPIN[@]}"; do
-            clear_printf "[${message}] ${s}"
-            sleep 0.1
-        done
-    done
-} # loading()
 
 write() {
     if [ ${SILENT_MODE} -eq 0 ]; then
@@ -60,7 +48,6 @@ clear_printfln() {
 } # clear_printfln()
 
 parse_arguments() {
-    
     if [ "$1" == "1" ]; then
         SILENT_MODE=1
         shift
@@ -102,7 +89,7 @@ install_sdk_sys_imgs() {
     clear_printfln "Installing Android SDK system images"
     clear_printfln "---------------------------------------"
     clear_printfln ""
-    clear_printfln "Installing Android API system images"
+    clear_println  "Installing \033[1mAndroid API\033[0m system images"
     local tag_id=""
 
     if [ ${#A_PLATFORMS[@]} -gt 0 ]; then
@@ -111,21 +98,31 @@ install_sdk_sys_imgs() {
             local api="$(printf "${platform}" | cut -d ":" -f 1)"
             local plat="$(printf "${platform}" | cut -d ":" -f 2)"
             parse_sys_img_xml ${api} ${plat}
-            download_sys_img "android"
-            unzip_sys_img ${api} ${plat} ${tag_id}
+
+            download_file "${ANDROID_SDK_SYS_IMG_BASE_URL}/android/${SYS_IMG_FILE}" "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}"
+            if [ $? -ne 0 ]; then continue; fi
+            check_downloaded_file "${DOWNLOAD_DIR}/${SYS_IMG_FILE}"
+            if [ $? -ne 0 ]; then continue; fi
+            unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/${api}/${tag_id}/"
+            if [ $? -ne 0 ]; then continue; fi
         done
     fi
 
     if [ ${#G_PLATFORMS[@]} -gt 0 ]; then
         clear_printfln ""
-        clear_printfln "Installing Google API system images"
+        clear_printfln "Installing \033[1mGoogle API\033[0m system images"
         download_sys_img_xml "google_apis"
         for platform in ${G_PLATFORMS[@]}; do
             local api="$(printf "${platform}" | cut -d ":" -f 1)"
             local plat="$(printf "${platform}" | cut -d ":" -f 2)"
             parse_sys_img_xml ${api} ${plat}
-            download_sys_img "google_apis"
-            unzip_sys_img ${api} ${plat} ${tag_id}
+
+            download_file "${ANDROID_SDK_SYS_IMG_BASE_URL}/google_apis/${SYS_IMG_FILE}" "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}"
+            if [ $? -ne 0 ]; then continue; fi
+            check_downloaded_file "${DOWNLOAD_DIR}/${SYS_IMG_FILE}"
+            if [ $? -ne 0 ]; then continue; fi
+            unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/${api}/${tag_id}/"
+            if [ $? -ne 0 ]; then continue; fi
         done
     fi
     clear_printfln ""
@@ -134,7 +131,8 @@ install_sdk_sys_imgs() {
 download_sys_img_xml() {
     local provider=${1}
 
-    wget -q --show-progress -O "${DOWNLOAD_DIR}/${XML_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/sys-img.xml"
+    printf "Downloading: ${DOWNLOAD_DIR}/\033[1;35m${XML_FILE}\033[0m\n"
+    wget -q --show-progress -O "${DOWNLOAD_DIR}/${XML_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/${XML_FILE}"
 } # download_sys_img_xml()
 
 parse_sys_img_xml() {
@@ -155,28 +153,9 @@ parse_sys_img_xml() {
 
     local xmlstarlet_output=$(xmlstarlet sel -N x=http://schemas.android.com/sdk/android/sys-img/3 -T -t -m "//x:system-image[x:api-level='${api_level}' and x:abi='${platform}' ${platform_n}]" -v "concat(x:archives/x:archive/x:url, '|', x:tag-id )" -n ${DOWNLOAD_DIR}/${XML_FILE})
 
-    ANDROID_SDK_SYS_IMG_URL="$(printf "${xmlstarlet_output}" | cut -d "|" -f 1)"
+    SYS_IMG_FILE="$(printf "${xmlstarlet_output}" | cut -d "|" -f 1)"
     tag_id="$(printf "${xmlstarlet_output}" | cut -d "|" -f 2)"
 } # parse_sys_img_xml()
-
-download_sys_img() {
-    local provider=${1}
-
-    wget -q --show-progress -O "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/${ANDROID_SDK_SYS_IMG_URL}"
-} # download_sys_img()
-
-unzip_sys_img() {
-    local api=${1}
-    local platform=${2}
-    local path="${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/${api}/${tag_id}/"
-
-    loading "Unzipping ${SYS_IMG_FILE}" &
-    mkdir -p ${path} &>/dev/null
-    unzip "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" -d ${path} &>/dev/null
-    kill $!
-    trap 'kill $1' SIGTERM
-    clear_printfln "[Unzipping ${SYS_IMG_FILE}] Done."
-} # unzip_sys_img()
 
 parse_arguments $@
 install_sdk_sys_imgs
