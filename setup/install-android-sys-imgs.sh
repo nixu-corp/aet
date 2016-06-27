@@ -103,7 +103,7 @@ install_sdk_sys_imgs() {
             if [ $? -ne 0 ]; then continue; fi
             check_downloaded_file "${DOWNLOAD_DIR}/${SYS_IMG_FILE}"
             if [ $? -ne 0 ]; then continue; fi
-            unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/${api}/${tag_id}/"
+            unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/android-${api}/${tag_id}/"
             if [ $? -ne 0 ]; then continue; fi
         done
     fi
@@ -121,7 +121,7 @@ install_sdk_sys_imgs() {
             if [ $? -ne 0 ]; then continue; fi
             check_downloaded_file "${DOWNLOAD_DIR}/${SYS_IMG_FILE}"
             if [ $? -ne 0 ]; then continue; fi
-            unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/${api}/${tag_id}/"
+            unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/android-${api}/${tag_id}/"
             if [ $? -ne 0 ]; then continue; fi
         done
     fi
@@ -136,7 +136,7 @@ download_sys_img_xml() {
 } # download_sys_img_xml()
 
 parse_sys_img_xml() {
-    local api_level="$(printf "${1}" | cut -d "-" -f 2)"
+    local api_level="${1}"
     local platform="${2}"
     local platform_n=""
 
