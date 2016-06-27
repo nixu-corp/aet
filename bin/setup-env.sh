@@ -2,7 +2,6 @@
 
 set -u
 
-# setup-env.sh variables
 USAGE="Usage: ./setup-env.sh [-s|--silent] [-r|--root] [-e configuration file] [-m configuration file]"
 HELP_TEXT="
 OPTIONS
@@ -51,12 +50,12 @@ parse_arguments() {
         print_usage
     fi
 
+    local show_help=0
     for ((i=1; i <= $#; i++)); do
         if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
-            printf "${HELP_MSG}\n"
-            exit
+            show_help=1
         elif [ "${!i}" == "-r" ] || [ "${!i}" == "--root" ]; then
             ROOT=1
         elif [ "${!i}" == "-e" ] || [ "${!i}" == "--environment" ]; then
@@ -80,15 +79,24 @@ parse_arguments() {
                 MODIFY_CONF="${!i}"
             fi
         else
-            printf "Unknown argument: ${!i}"
+            printf "Unknown argument: ${!i}\n"
             print_usage
         fi
     done
+
+    if [ ${show_help} -eq 1 ]; then
+        if [ ${SILENT_MODE} -eq 0 ]; then
+            printf "${USAGE}\n"
+            printf "${HELP_TEXT}\n"
+        fi
+        exit
+    fi
 
     if [ ${SETUP_TOOLS} -eq 1 ] && [ ! -f ${TOOLS_CONF} ]; then
         printf "Setup tools configuration file does not exist!\n"
         exit 1
     fi
+
     if [ ${MODIFY_ENV} -eq 1 ] && [ ! -f ${MODIFY_CONF} ]; then
         printf "Modify environment configuration file does not exist!\n"
         exit 1
@@ -141,8 +149,10 @@ modify_env() {
     fi
 } # modify_env()
 
-
 parse_arguments $@
+
+printf "Started $(date)\n"
 check_root
 setup_tools
 modify_env
+printf "Finished $(date)\n"

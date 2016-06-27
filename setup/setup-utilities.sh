@@ -19,6 +19,11 @@ loading() {
     done
 } # loading()
 
+print_help() {
+    println "${USAGE}"
+    println "${HELP_TEXT}"
+} # show_help()
+
 write() {
     if [ "${SILENT_MODE}" == "0" ]; then
         if [ $# -ge 2 ]; then

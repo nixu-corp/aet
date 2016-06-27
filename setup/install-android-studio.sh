@@ -4,24 +4,60 @@ EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
-USAGE="./install-android-studio.sh <download directory> <Android Studio directory> <Android Studio zip file>... [-s|--silent]"
+USAGE="./install-android-studio.sh <download directory> <android studio directory> <android studio zip file> [-s|--silent]"
+HELP_TEXT="
+OPTIONS
+-s, --silent                Silent mode, suppresses all output except result
+-h, --help                  Display this help and exit
+
+<download directory>
+<android studio directory>  Android Studio installation directory
+<android studio zip file>   The android studio download file name"
 
 DOWNLOAD_DIR=""
 ASTUDIO_DIR=""
 STUDIO_FILE=""
 
 parse_arguments() {
-    if [ $# -lt 3 ]; then
+    if [ $# -eq 0 ]; then
         println "${USAGE}"
+        println "See -h for more info"
         exit 1
     fi
 
-    DOWNLOAD_DIR="$1"
-    ASTUDIO_DIR="$2"
-    STUDIO_FILE="$3"
+    show_help=0
+    for arg in $@; do
+        if [ "${arg}" == "-h" ] || [ "${arg}" == "--help" ]; then
+            show_help=1
+        elif [ "${arg}" == "-s" ] || [ "${arg}" == "--silent" ]; then
+            SILENT_MODE=1
+        else
+            if [ -z "${DOWNLOAD_DIR}" ]; then
+                DOWNLOAD_DIR="${arg}"
+            elif [ -z "${ASTUDIO_DIR}" ]; then
+                ASTUDIO_DIR="${arg}"
+            elif [ -z "${STUDIO_FILE}" ]; then
+                STUDIO_FILE="${arg}"
+            else
+                println "Unknown argument: ${!i}"
+                println "${USAGE}"
+                println "See -h for more info"
+                exit
+            fi
+        fi
+    done
 
-    if [ "$4" == "-s" ] || [ "$4" == "--silent" ]; then
-        SILENT_MODE=1
+    if [ ${show_help} -eq 1 ]; then
+        print_help
+        exit
+    fi
+
+    if [ -z "${DOWNLOAD_DIR}" ] \
+    || [ -z "${ASTUDIO_DIR}" ] \
+    || [ -z "${STUDIO_FILE}" ]; then
+        println "${USAGE}"
+        println "See -h for more info"
+        exit 1
     fi
 
     DOWNLOAD_DIR=${DOWNLOAD_DIR%/}

@@ -4,8 +4,17 @@ EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
-USAGE="./install-android-sdk.sh <download directory> <Android SDK directory> <Android SDK tgz file> [-a <android api>...] [-g <google api>...] [-s|--silent]"
+USAGE="./install-android-sdk.sh <download directory> <android sdk directory> <android sdk tgz file> [-a android apis] [-g google apis] [-s|--silent]"
+HELP_TEXT="
+OPTIONS
+-a <android apis>           API's comma-separated; eg 23 for Android SDK 23
+-g <google apis>            API's comma-separated; eg 23 for Google SDK 23
+-s, --silent                Silent mode, suppresses all output except result
+-h, --help                  Display this help and exit
 
+<download directory>
+<android sdk directory>     Android SDK installation directory
+<android sdk tgz file>      The android sdk download file name"
 DOWNLOAD_DIR=""
 ASDK_DIR=""
 SDK_FILE=""
@@ -14,19 +23,18 @@ A_APIS=()
 G_APIS=()
 
 parse_arguments() {
-    DOWNLOAD_DIR="$1"
-    ASDK_DIR="$2"
-    SDK_FILE="$3"
+    if [ $# -eq 0 ]; then
+        println "${USAGE}"
+        println "See -h for more info"
+        exit 1
+    fi
 
-    DOWNLOAD_DIR=${DOWNLOAD_DIR%/}
-    ASDK_DIR=${ASDK_DIR%/}
-
-    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
-    mkdir -p ${ASDK_DIR} &>/dev/null
-
-    for ((i = 4; i <= $#; i++)); do
+    local show_help=0
+    for ((i = 1; i <= $#; i++)); do
         if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
+            show_help=1
         elif [ "${!i}" == "-a" ]; then
             i=$((i + 1))
             for ((j=${i}; j <= $#; j++)); do
@@ -45,8 +53,45 @@ parse_arguments() {
                 fi
                 G_APIS+=("${!j}")
             done
+        else
+            if [ -z "${DOWNLOAD_DIR}" ]; then
+                DOWNLOAD_DIR="${!i}"
+            elif [ -z "${ASDK_DIR}" ]; then
+                ASDK_DIR="${!i}"
+            elif [ -z "${SDK_FILE}" ]; then
+                SDK_FILE="${!i}"
+            else
+                println "Unknown argument: ${!i}"
+                println "${USAGE}"
+                println "See -h for more info"
+                exit
+            fi
         fi
     done
+
+    if [ ${show_help} -eq 1 ]; then
+        print_help
+        exit
+    fi
+
+    if [ -z "${DOWNLOAD_DIR}" ] \
+    || [ -z "${ASDK_DIR}" ] \
+    || [ -z "${SDK_FILE}" ]; then
+        println "${USAGE}"
+        println "See -h for more info"
+        exit 1
+    fi
+
+    if [ ${#A_APIS[@]} -eq 0 ] && [ ${#G_APIS[@]} -eq 0 ]; then
+        println "No API's have been specified!"
+        exit 1
+    fi
+
+    DOWNLOAD_DIR=${DOWNLOAD_DIR%/}
+    ASDK_DIR=${ASDK_DIR%/}
+
+    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
+    mkdir -p ${ASDK_DIR} &>/dev/null
 } # parse_arguments()
 
 install_android_sdk() {

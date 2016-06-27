@@ -4,7 +4,14 @@ EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
-USAGE="./install-avd.sh <Android SDK directory> <AVD configuration files>... [-s|--silent]"
+USAGE="./install-avd.sh <android sdk directory> <avd configuration files> [-s|--silent]"
+HELP_TEXT="
+OPTIONS
+-s, --silent                Silent mode, suppresses all output except result
+-h, --help                  Display this help and exit
+
+<android sdk directory>     Android SDK installation directory
+<avd configuration files>   AVD configuration files, each one as a separate argument"
 
 ANDROID_SDK_DIR=""
 AVD_CONF_FILES=()
@@ -26,14 +33,37 @@ parse_arguments() {
         exit 1
     fi
 
-    ANDROID_SDK_DIR="$1"
-    for ((i = 2; i <= $#; i++)); do
+    if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+        println "${USAGE}"
+        println "${HELP_TEXT}"
+        exit
+    fi
+
+    local show_help=0
+    for ((i = 1; i <= $#; i++)); do
         if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
+            show_help=1
         else
-            AVD_CONF_FILES+=("${ROOT_DIR}/conf/${!i}")
+            if [ -z "${ANDROID_SDK_DIR}" ]; then
+                ANDROID_SDK_DIR="${!i}"
+            else
+                AVD_CONF_FILES+=("${ROOT_DIR}/conf/${!i}")
+            fi
         fi
     done
+
+    if [ ${show_help} -eq 1 ]; then
+        print_help
+        exit
+    fi
+
+    if [ -z "${ANDROID_SDK_DIR}" ]; then
+        println "${USAGE}"
+        println "See -h for more info"
+        exit 1
+    fi
 
     if [ ! -d ${ANDROID_SDK_DIR} ]; then
         println "Android SDK directory does not exist!"
@@ -41,7 +71,7 @@ parse_arguments() {
     fi
 
     if [ ${#AVD_CONF_FILES[@]} -eq 0 ]; then
-        println "No AVD configuration files specified!"
+        println "No AVD configuration files have been specified!"
         exit 1
     fi
 } # parse_arguments()

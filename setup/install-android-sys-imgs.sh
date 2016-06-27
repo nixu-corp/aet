@@ -1,10 +1,23 @@
 #!/bin/bash
 
+set -u
+
 EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
-USAGE="./install-android-sys-imgs.sh <download directory> <Android SDK directory> [-a <Android platforms>...] [-g <Google platforms>...] [-s|--silent]"
+USAGE="./install-android-sys-imgs.sh <download directory> <android sdk directory> [-a android platforms] [-g google platforms] [-s|--silent]"
+HELP_TEXT="
+OPTIONS
+-a <android platforms>      Android platforms comma-separated in this format: <API>:<platform>
+                            eg. '23:x86' for android-23, x86 cpu architecture
+-g <google platforms>       Google platforms comma-separated in this format: <API>:<platform>
+                            eg. '23:x86; for android-23, x86 cpu architecture
+-s, --silent                Silent mode, suppresses all output except result
+-h, --help                  Display this help and exit
+
+<download directory>
+<android sdk directory>     Android SDK installation directory"
 
 DOWNLOAD_DIR=""
 ASDK_DIR=""
@@ -19,17 +32,18 @@ A_PLATFORMS=()
 G_PLATFORMS=()
 
 parse_arguments() {
-    if [ "$1" == "1" ]; then
-        SILENT_MODE=1
-        shift
+    if [ $# -eq 0 ]; then
+        println "${USAGE}"
+        println "See -h for more info"
+        exit 1
     fi
 
-    DOWNLOAD_DIR="$1"
-    ASDK_DIR="$2"
-
-    for ((i = 3; i <= $#; i++)); do
+    local show_help=0
+    for ((i = 1; i <= $#; i++)); do
         if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
+            show_help=1
         elif [ "${!i}" == "-a" ]; then
             i=$((i + 1))
             for ((j=${i}; j <= $#; j++)); do
@@ -48,14 +62,45 @@ parse_arguments() {
                 fi
                 G_PLATFORMS+=("${!j}")
             done
+        else
+            if [ -z "${DOWNLOAD_DIR}" ]; then
+                DOWNLOAD_DIR="${!i}"
+            elif [ -z "${ASDK_DIR}" ]; then
+                ASDK_DIR="${!i}"
+            else
+                println "Unknown argument: ${!i}"
+                println "${USAGE}"
+                println "See -h for more info"
+                exit
+            fi
         fi
     done
 
-    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
+    if [ ${show_help} -eq 1 ]; then
+        print_help
+        exit
+    fi
+
+    if [ -z "${DOWNLOAD_DIR}" ] \
+    || [ -z "${ASDK_DIR}" ]; then
+        println "${USAGE}"
+        println "See -h for more info"
+        exit 1
+    fi
 
     if [ ! -d ${ASDK_DIR} ]; then
         println "Android SDK directory does not exist!"
         exit 1
+    fi
+
+    if [ ${#A_PLATFORMS[@]} -eq 0 ] && [ ${#G_PLATFORMS[@]} -eq 0 ]; then
+        println "No platforms have been specified!"
+        exit 1
+    fi
+
+    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
+    if [ ! -d ${DOWNLOAD_DIR} ]; then
+        println "Download directory does not exist!"
     fi
 } # parse_arguments()
 

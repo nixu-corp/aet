@@ -2,30 +2,6 @@
 
 set -u
 
-################################
-# Outline
-################################
-# Variables
-#
-# Functions
-#   loading()
-#   clear_print()
-#   clear_println()
-#   clear_printf()
-#   clear_printfln()
-#   parse_arguments()
-#   read_conf()
-#   check_filesystem()
-#   cleanup()
-#
-# MAIN; Entry point
-#
-################################
-
-###################
-# Global variables
-###################
-
 EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
@@ -63,7 +39,6 @@ A_PLATFORMS=()
 G_PLATFORMS=()
 AVD_CONF_FILES=()
 
-# Configuration variables
 WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*\#"
 DOWNLOAD_REGEX="^download_dir[[:blank:]]*=[[:blank:]]*\(.*\)"
@@ -75,29 +50,39 @@ A_PLATFORM_REGEX="^android_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
 G_PLATFORM_REGEX="^google_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
 AVD_CONF_REGEX="^avd_configuration_files[[:blank:]]*=[[:blank:]]*\(.*\)"
 
-#######################
-# General functions
-#######################
-
 parse_arguments() {
-    if [ $# -eq 0 ] || [ $# -gt 2 ]; then
+    if [ $# -eq 0 ]; then
         println "${USAGE}"
         println "See -h for more info"
         exit 1
     fi
 
+    local show_help=0
     for i in $@; do
         if [ "${i}" == "-s" ] || [ "${i}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
-            println "${HELP_MSG}"
-            exit
+            show_help=1
         else
-            CONF_FILE="${i}"
+            if [ -z "${CONF_FILE}" ]; then
+                CONF_FILE="${i}"
+            else
+                println "Unknown argument: ${!i}"
+                println "${USAGE}"
+                println "See -h for more info"
+                exit
+            fi
         fi
     done
 
-    if [ ! -f ${CONF_FILE} ]; then
+    if [ ${show_help} -eq 1 ]; then
+        print_help
+        exit
+    fi
+
+    if [ -z "${CONF_FILE}" ]; then
+        println "${USAGE}"
+        println "See -h for more info"
         exit 1
     fi
 } # parse_arguments()
@@ -211,6 +196,4 @@ if [ ${SKIP} -eq 0 ]; then
 else
     println "Skipping AVD installation"
 fi
-printfln "-----------------------------------"
-println "Done."
 println ""
