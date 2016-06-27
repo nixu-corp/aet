@@ -1,7 +1,10 @@
 #!/bin/bash
 
 EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
+EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
+
+USAGE="./install-android-sdk.sh <download directory> <Android SDK directory> <Android SDK tgz file> [-a <android api>...] [-g <google api>...] [-s|--silent]"
 
 DOWNLOAD_DIR=""
 ASDK_DIR=""
@@ -22,10 +25,12 @@ parse_arguments() {
     mkdir -p ${ASDK_DIR} &>/dev/null
 
     for ((i = 4; i <= $#; i++)); do
-        if [ "${!i}" == "-a" ]; then
+        if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
+            SILENT_MODE=1
+        elif [ "${!i}" == "-a" ]; then
             i=$((i + 1))
             for ((j=${i}; j <= $#; j++)); do
-                if [ "${!j}" == "-g" ]; then
+                if [ $(expr "${!j}" : "--\?[[:alpha:]]") -ne 0 ]; then
                     i=$((j - 1))
                     break
                 fi
@@ -34,7 +39,7 @@ parse_arguments() {
         elif [ "${!i}" == "-g" ]; then
             i=$((i + 1))
             for ((j = ${i}; j <= $#; j++)); do
-                if [ "${!j}" == "-a" ]; then
+                if [ $(expr "${!j}" : "--\?[[:alpha:]]") -ne 0 ]; then
                     i=$((j - 1))
                     break
                 fi
@@ -45,22 +50,22 @@ parse_arguments() {
 } # parse_arguments()
 
 install_android_sdk() {
-    printf "%s\n" "---------------------------------------"
-    printf "%s\n" "Installing Android SDK"
-    printf "%s\n" "---------------------------------------"
+    printfln "---------------------------------------"
+    println "Installing Android SDK"
+    printfln "---------------------------------------"
     download_file "https://dl.google.com/android/android-sdk_r22.0.5-linux.tgz" "${DOWNLOAD_DIR}" "${SDK_FILE}"
     if [ $? -ne 0 ]; then exit 1; fi
     check_downloaded_file "${DOWNLOAD_DIR}/${SDK_FILE}"
     if [ $? -ne 0 ]; then exit 1; fi
     unzip_file "${DOWNLOAD_DIR}" "${SDK_FILE}" "${ASDK_DIR}"
     if [ $? -ne 0 ]; then exit 1; fi
-    printf "%s\n" ""
+    println "\n"
 } # install_android_sdk()
 
 install_sdk_packages() {
-    printf "%s\n" "---------------------------------------"
-    printf "%s\n" "Installing Android SDK packages"
-    printf "%s\n" "---------------------------------------"
+    printfln "---------------------------------------"
+    println "Installing Android SDK packages"
+    printfln "---------------------------------------"
 
     local -a retry_packages=()
     local -a packages_info=()
@@ -112,9 +117,9 @@ install_sdk_packages() {
         if [ ${round_done} -eq 1 ]; then
             if [ ${#retry_packages[@]} -gt 0 ]; then
                 if [ ${retry_counter} -lt ${retry_count} ]; then
-                    printf "%s\n" ""
-                    printf "%s\n" "Retrying to install skipped packages"
-                    printf "%s\n" "${retry_packages[@]}"
+                    println ""
+                    println "Retrying to install skipped packages"
+                    println "${retry_packages[@]}"
                     packages_info=${retry_packages}
                     retry_packages=()
                     grepstr=${grepstr_bak}
@@ -124,16 +129,16 @@ install_sdk_packages() {
                     previous_count=0
                     retry_counter=$((retry_counter + 1))
                 else
-                    printf "%s\n" "---"
-                    printf "%s\n" "Failed to install some packages"
+                    printfln "---"
+                    println "Failed to install some packages"
                     break
                 fi
             else
-                printf "%s\n" "---"
+                printfln "---"
                 if [ ${previous_count} -eq 0 ]; then
-                    printf "%s\n" "No packages were installed"
+                    println "No packages were installed"
                 else
-                    printf "%s\n" "Successfully installed packages"
+                    println "Successfully installed packages"
                 fi
                 break
             fi
@@ -142,7 +147,7 @@ install_sdk_packages() {
         fi 
         
     done
-    printf "%s\n" ""
+    println ""
 } # install_sdk_packages()
 
 get_packages_info() {
@@ -218,7 +223,7 @@ process_package_info() {
     fi
 
     if  [ ${previous_count} -gt 2 ]; then
-        printf "%s\n" "Skipping ${package_desc}..."
+        println "Skipping ${package_desc}..."
         retry_packages+=("id: ${package_ID} or \"${package_name}\" Desc: ${package_desc}")
         grepstr=$(printf "${grepstr}" | sed "s/${package_name}|\?//")
         grepstr="${grepstr%|)}"
@@ -236,8 +241,7 @@ install_package() {
     previous_desc=${package_desc}
     kill $!
     trap 'kill $1' SIGTERM
-    printf "\r$(tput el)"
-    printf "%s\n" "Installed ${package_desc}"
+    clear_println "Installed ${package_desc}"
 } # install_package()
 
 parse_arguments $@

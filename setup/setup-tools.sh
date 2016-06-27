@@ -27,6 +27,7 @@ set -u
 ###################
 
 EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
 USAGE="Usage: ./setup-tools.sh [-s|--silent] <configuration file>"
@@ -56,8 +57,6 @@ ASDK_DIR=""
 DOWNLOAD_DIR=""
 STUDIO_FILE="android-studio-ide-143.2915827-linux.zip"
 SDK_FILE="android-sdk_r22.0.5-linux.tgz"
-XML_FILE="sys-img.xml"
-SYS_IMG_FILE="sys-img.zip"
 A_APIS=()
 G_APIS=()
 A_PLATFORMS=()
@@ -76,16 +75,14 @@ A_PLATFORM_REGEX="^android_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
 G_PLATFORM_REGEX="^google_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
 AVD_CONF_REGEX="^avd_configuration_files[[:blank:]]*=[[:blank:]]*\(.*\)"
 
-SILENT_MODE=0
-
 #######################
 # General functions
 #######################
 
 parse_arguments() {
     if [ $# -eq 0 ] || [ $# -gt 2 ]; then
-        printf "${USAGE}\n"
-        printf "See -h for more info\n"
+        println "${USAGE}"
+        println "See -h for more info"
         exit 1
     fi
 
@@ -93,7 +90,7 @@ parse_arguments() {
         if [ "${i}" == "-s" ] || [ "${i}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
-            printf "${HELP_MSG}\n"
+            println "${HELP_MSG}"
             exit
         else
             CONF_FILE="${i}"
@@ -150,11 +147,11 @@ read_conf() {
     done < "${CONF_FILE}"
 
     if [ -z "${DOWNLOAD_DIR}" ]; then
-        printf "Download directory has not been specified!\n"
+        println "Download directory has not been specified!"
         exit 1
     fi
     if [ -z "${ASDK_DIR}" ]; then
-        printf "Android SDK directory has not been specified!\n"
+        println "Android SDK directory has not been specified!"
         exit 1
     fi
 } # read_conf()
@@ -165,35 +162,18 @@ check_filesystem() {
     ASDK_DIR="${ASDK_DIR%/}"
 
     if [ ! -d "${DOWNLOAD_DIR}" ]; then
-        printf "Download directory not found!\n"
+        println "Download directory not found!"
         exit 1
     fi
 
     if [ -d "${ASTUDIO_DIR}" ]; then
-        printf "WARNING: Android studio installation directory already exists, will overwrite!\n"
+        println "WARNING: Android studio installation directory already exists, will overwrite!"
     fi
 
     if [ -d "${ASDK_DIR}" ]; then
-        printf "WARNING: Android SDK installation directory already exists, will overwrite!\n"
+        println "WARNING: Android SDK installation directory already exists, will overwrite!"
     fi
 } # check_filesystem()
-
-cleanup() {
-    printf "\n"
-    printf "%s\n" "---------------------------------------"
-    printf "%s\n" "Cleanup"
-    printf "%s\n" "---------------------------------------"
-    printf "\n"
-    printf "Deleting \033[1;35m${STUDIO_FILE}\033[0m\n"
-    rm "${DOWNLOAD_DIR}/${STUDIO_FILE}" &>/dev/null
-    printf "Deleting \033[1;35m${SDK_FILE}\033[0m\n"
-    rm "${DOWNLOAD_DIR}/${SDK_FILE}"  &>/dev/null
-    printf "Deleting \033[1;35m${XML_FILE}\033[0m\n"
-    rm "${DOWNLOAD_DIR}/${XML_FILE}"  &>/dev/null
-    printf "Deleting \033[1;35m${SYS_IMG_FILE}\033[0m\n"
-    rm "${DOWNLOAD_DIR}/${SYS_IMG_FILE}" &>/dev/null
-    printf "\n"
-} # cleanup()
 
 ##########################
 # MAIN; Entry point
@@ -201,31 +181,36 @@ cleanup() {
 parse_arguments $@
 read_conf
 check_filesystem
-printf "${BANNER}\n"
-${EXEC_DIR}/install-android-studio.sh ${DOWNLOAD_DIR} ${ASTUDIO_DIR} ${STUDIO_FILE}
+println "${BANNER}"
+
+silent_modifier=""
+if [ "${SILENT_MODE}" == "1" ]; then
+    silent_modifier="--silent"
+fi
+
+${EXEC_DIR}/install-android-studio.sh ${DOWNLOAD_DIR} ${ASTUDIO_DIR} ${STUDIO_FILE} ${silent_modifier}
 SKIP=$?
 
 if [ ${SKIP} -eq 0 ]; then
-    ${EXEC_DIR}/install-android-sdk.sh ${DOWNLOAD_DIR} ${ASDK_DIR} ${SDK_FILE} -a "${A_APIS[@]}" -g "${G_APIS[@]}"
+    ${EXEC_DIR}/install-android-sdk.sh ${DOWNLOAD_DIR} ${ASDK_DIR} ${SDK_FILE} -a "${A_APIS[@]}" -g "${G_APIS[@]}" ${silent_modifier}
     SKIP=$?
 else
-    printf "Skipping Android SDK installation\n"
+    println "Skipping Android SDK installation"
 fi
 
 if [ ${SKIP} -eq 0 ]; then
-    ${EXEC_DIR}/install-android-sys-imgs.sh ${DOWNLOAD_DIR} ${ASDK_DIR} -a "${A_PLATFORMS[@]}" -g "${G_PLATFORMS[@]}"
+    ${EXEC_DIR}/install-android-sys-imgs.sh ${DOWNLOAD_DIR} ${ASDK_DIR} -a "${A_PLATFORMS[@]}" -g "${G_PLATFORMS[@]}" ${silent_modifier}
     SKIP=$?
 else
-    printf "Skipping system image installation\n"
+    println "Skipping system image installation"
 fi
 
 if [ ${SKIP} -eq 0 ]; then
-    ${EXEC_DIR}/install-avds.sh ${ASDK_DIR} "${AVD_CONF_FILES[@]}"
+    ${EXEC_DIR}/install-avds.sh ${ASDK_DIR} "${AVD_CONF_FILES[@]}" ${silent_modifier}
     SKIP=$?
 else
-    printf "Skipping AVD installation\n"
+    println "Skipping AVD installation"
 fi
-cleanup
-printf "%s\n" "-----------------------------------"
-printf "Done.\n"
-printf "\n"
+printfln "-----------------------------------"
+println "Done."
+println ""

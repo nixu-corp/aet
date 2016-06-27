@@ -1,9 +1,10 @@
 #!/bin/bash
 
 EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
+EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
-SILENT_MODE=0
+USAGE="./install-android-sys-imgs.sh <download directory> <Android SDK directory> [-a <Android platforms>...] [-g <Google platforms>...] [-s|--silent]"
 
 DOWNLOAD_DIR=""
 ASDK_DIR=""
@@ -17,36 +18,6 @@ ANDROID_SDK_SYS_IMG_URL=""
 A_PLATFORMS=()
 G_PLATFORMS=()
 
-write() {
-    if [ ${SILENT_MODE} -eq 0 ]; then
-        if [ $# -ge 2 ]; then
-            printf "${1}" "${2}"
-        elif [ $# -eq 1 ]; then
-            printf "${1}"
-        fi
-    fi
-} # message()
-
-clear_print() {
-    write "\r$(tput el)"
-    write "${1}"
-} # clear_print()
-
-clear_println() {
-    clear_print "${1}"
-    write "\n"
-} # clear_println()
-
-clear_printf() {
-    write "\r$(tput el)"
-    write "%s" "${1}"
-} # clear_printf()
-
-clear_printfln() {
-    clear_printf "${1}"
-    write "\n"
-} # clear_printfln()
-
 parse_arguments() {
     if [ "$1" == "1" ]; then
         SILENT_MODE=1
@@ -57,10 +28,12 @@ parse_arguments() {
     ASDK_DIR="$2"
 
     for ((i = 3; i <= $#; i++)); do
-        if [ "${!i}" == "-a" ]; then
+        if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
+            SILENT_MODE=1
+        elif [ "${!i}" == "-a" ]; then
             i=$((i + 1))
             for ((j=${i}; j <= $#; j++)); do
-                if [ "${!j}" == "-g" ]; then
+                if [ $(expr "${!j}" : "--\?[[:alpha:]]") -ne 0 ]; then
                     i=$((j - 1))
                     break
                 fi
@@ -69,7 +42,7 @@ parse_arguments() {
         elif [ "${!i}" == "-g" ]; then
             i=$((i + 1))
             for ((j = ${i}; j <= $#; j++)); do
-                if [ "${!j}" == "-a" ]; then
+                if [ $(expr "${!j}" : "--\?[[:alpha:]]") -ne 0 ]; then
                     i=$((j - 1))
                     break
                 fi
@@ -78,17 +51,19 @@ parse_arguments() {
         fi
     done
 
-    if [ ! -d ${DOWNLOAD_DIR} ]; then
-        printf "Download directory not found!\n"
+    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
+
+    if [ ! -d ${ASDK_DIR} ]; then
+        println "Android SDK directory does not exist!"
         exit 1
     fi
 } # parse_arguments()
 
 install_sdk_sys_imgs() {
-    clear_printfln "---------------------------------------"
-    clear_printfln "Installing Android SDK system images"
-    clear_printfln "---------------------------------------"
-    clear_printfln ""
+    printfln "---------------------------------------"
+    println "Installing Android SDK system images"
+    printfln "---------------------------------------"
+    clear_println ""
     clear_println  "Installing \033[1mAndroid API\033[0m system images"
     local tag_id=""
 
@@ -106,11 +81,12 @@ install_sdk_sys_imgs() {
             unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/android-${api}/${tag_id}/"
             if [ $? -ne 0 ]; then continue; fi
         done
+        rm "${DOWNLOAD_DIR}/${XML_FILE}" &>/dev/null
     fi
 
     if [ ${#G_PLATFORMS[@]} -gt 0 ]; then
-        clear_printfln ""
-        clear_printfln "Installing \033[1mGoogle API\033[0m system images"
+        clear_println ""
+        clear_println "Installing \033[1mGoogle API\033[0m system images"
         download_sys_img_xml "google_apis"
         for platform in ${G_PLATFORMS[@]}; do
             local api="$(printf "${platform}" | cut -d ":" -f 1)"
@@ -124,15 +100,20 @@ install_sdk_sys_imgs() {
             unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/android-${api}/${tag_id}/"
             if [ $? -ne 0 ]; then continue; fi
         done
+        rm "${DOWNLOAD_DIR}/${XML_FILE}" &>/dev/null
     fi
-    clear_printfln ""
+    clear_println ""
 } # install_sdk_sys_imgs()
 
 download_sys_img_xml() {
     local provider=${1}
+    local progress_modifier="--show-progress"
+    if [ "${SILENT_MODE}" == "1" ]; then
+        progress_modifier=""
+    fi
 
-    printf "Downloading: ${DOWNLOAD_DIR}/\033[1;35m${XML_FILE}\033[0m\n"
-    wget -q --show-progress -O "${DOWNLOAD_DIR}/${XML_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/${XML_FILE}"
+    println "Downloading: ${DOWNLOAD_DIR}/\033[1;35m${XML_FILE}\033[0m"
+    wget -q ${progress_modifier} -O "${DOWNLOAD_DIR}/${XML_FILE}" "${ANDROID_SDK_SYS_IMG_BASE_URL}/${provider}/${XML_FILE}"
 } # download_sys_img_xml()
 
 parse_sys_img_xml() {
@@ -140,7 +121,7 @@ parse_sys_img_xml() {
     local platform="${2}"
     local platform_n=""
 
-    if [ ${api_level} == "23N" ]; then
+    if [ "${api_level}" == "23N" ]; then
         platform_n=" and x:codename"
     else
         platform_n=" and not(x:codename)"

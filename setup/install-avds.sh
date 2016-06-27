@@ -1,9 +1,11 @@
 #!/bin/bash
 
-USAGE="./install-avd.sh <Android SDK directory> <AVD configuration files>..."
+EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
+EXEC_DIR="${EXEC_DIR%/}"
+source ${EXEC_DIR}/setup-utilities.sh
 
-EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$(dirname "${EXEC_DIR}")" && pwd)"
+USAGE="./install-avd.sh <Android SDK directory> <AVD configuration files>... [-s|--silent]"
+
 ANDROID_SDK_DIR=""
 AVD_CONF_FILES=()
 AVD_TARGET=""
@@ -18,43 +20,28 @@ TARGET_REGEX="^target[[:blank:]]*=[[:blank:]]*\(.*\)"
 TAG_REGEX="^tag[[:blank:]]*=[[:blank:]]*\(.*\)"
 ABI_REGEX="^abi[[:blank:]]*=[[:blank:]]*\(.*\)"
 
-SPIN[0]="-"
-SPIN[1]="\\"
-SPIN[2]="|"
-SPIN[3]="/"
-
-loading() {
-    local message=${1}
-    while true; do
-        for s in "${SPIN[@]}"; do
-            printf "\r$(tput el)"
-            printf "%s" "[${message}] ${s}"
-            sleep 0.1
-        done
-    done
-} # loading()
-
 parse_arguments() {
     if [ $# -lt 1 ]; then
-        printf "${USAGE}\n"
+        println "${USAGE}"
         exit 1
     fi
 
-    EXEC_DIR=${EXEC_DIR%/}
-    ROOT_DIR=${ROOT_DIR%/}
-
     ANDROID_SDK_DIR="$1"
     for ((i = 2; i <= $#; i++)); do
-        AVD_CONF_FILES+=("${ROOT_DIR}/conf/${!i}")
+        if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
+            SILENT_MODE=1
+        else
+            AVD_CONF_FILES+=("${ROOT_DIR}/conf/${!i}")
+        fi
     done
 
     if [ ! -d ${ANDROID_SDK_DIR} ]; then
-        printf "The specified Android SDK directory does not exist!\n"
+        println "Android SDK directory does not exist!"
         exit 1
     fi
 
     if [ ${#AVD_CONF_FILES[@]} -eq 0 ]; then
-        printf "No AVD configuration files specified!\n"
+        println "No AVD configuration files specified!"
         exit 1
     fi
 } # parse_arguments()
@@ -77,7 +64,7 @@ install_avds() {
 read_conf() {
     local conf_file="$1"
     if [ ! -f ${conf_file} ]; then
-        printf "AVD configuration file not found!\n"
+        println "AVD configuration file not found!"
         return 1
     fi
 
@@ -113,22 +100,22 @@ read_conf() {
     fi
 
     if [ -z "${AVD_NAME}" ]; then
-        printf "AVD's name has not been specified!\n"
+        println "AVD's name has not been specified!"
         return 1
     fi
 
     if [ -z "${AVD_TARGET}" ]; then
-        printf "AVD's target has not been specified!\n"
+        println "AVD's target has not been specified!"
         return 1
     fi
 
     if [ -z "${AVD_TAG}" ]; then
-        printf "AVD's tag has not been specified!\n"
+        println "AVD's tag has not been specified!"
         return 1
     fi
 
     if [ -z "${AVD_ABI}" ]; then
-        printf "AVD's abi has not been specified!\n"
+        println "AVD's abi has not been specified!"
         return 1
     fi
 } # read_conf()
@@ -136,7 +123,7 @@ read_conf() {
 check_avd() {
     local avds=$(${ANDROID_SDK_DIR}/$(ls ${ANDROID_SDK_DIR})/tools/android list avd)
     if [ ! -z "$(printf "${avds}\n" | grep "Name: ${AVD_NAME}")" ]; then
-        printf "There is already an AVD with the same name!\n"
+        println "There is already an AVD with the same name!"
         return 1
     fi
 
@@ -159,12 +146,12 @@ check_avd() {
     done <<< "${targets}"
 
     if [ ${target_ok} -eq 0 ]; then
-        printf "AVD target is not valid, please check the configuration file\n"
+        println "AVD target is not valid, please check the configuration file"
         return 1
     fi
 
     if [ ${tag_abi_ok} -eq 0 ]; then
-        printf "Tag/ABI combination not found, please check the configuration file\n"
+        println "Tag/ABI combination not found, please check the configuration file"
         return 1
     fi
 } # check_avd()
@@ -174,18 +161,17 @@ create_avd() {
     printf "\n" | ${ANDROID_SDK_DIR}/$(ls ${ANDROID_SDK_DIR})/tools/android create avd --name "${AVD_NAME}" --target "${AVD_TARGET}" --tag "${AVD_TAG}" --abi "${AVD_ABI}" &>/dev/null
     kill $!
     trap 'kill $1' SIGTERM
-    printf "\r$(tput el)"
+    clear_println ""
 
-    printf "Created Android Virtual Device:\n"
-    printf "  Name:       ${AVD_NAME}\n"
-    printf "  Target:     ${AVD_TARGET}\n"
-    printf "  Tag/ABIs:   ${AVD_TAG}/${AVD_ABI}\n"
-    printf "\n"
+    println "Created Android Virtual Device:"
+    println "  Name:       ${AVD_NAME}"
+    println "  Target:     ${AVD_TARGET}"
+    println "  Tag/ABIs:   ${AVD_TAG}/${AVD_ABI}"
+    println ""
 } # create_avd()
 
-printf "%s\n" "---------------------------------------"
-printf "%s\n" "Installing AVD's"
-printf "%s\n" "---------------------------------------"
-printf "\n"
+printfln "---------------------------------------"
+println "Installing AVD's"
+printfln "---------------------------------------"
 parse_arguments $@
 install_avds
