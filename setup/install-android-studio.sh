@@ -4,7 +4,7 @@ EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
-USAGE="./install-android-studio.sh <download directory> <android studio directory> <android studio zip file> [-s|--silent]"
+USAGE="Usage: ./install-android-studio.sh <download directory> <android studio directory> <android studio zip file> [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -s, --silent                Silent mode, suppresses all output except result
@@ -19,31 +19,23 @@ ASTUDIO_DIR=""
 STUDIO_FILE=""
 
 parse_arguments() {
-    if [ $# -eq 0 ]; then
-        println "${USAGE}"
-        println "See -h for more info"
-        exit 1
-    fi
-
-    show_help=0
+    local show_help=0
     for arg in $@; do
         if [ "${arg}" == "-h" ] || [ "${arg}" == "--help" ]; then
             show_help=1
         elif [ "${arg}" == "-s" ] || [ "${arg}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ -z "${DOWNLOAD_DIR}" ]; then
+            DOWNLOAD_DIR="${arg}"
+        elif [ -z "${ASTUDIO_DIR}" ]; then
+            ASTUDIO_DIR="${arg}"
+        elif [ -z "${STUDIO_FILE}" ]; then
+            STUDIO_FILE="${arg}"
         else
-            if [ -z "${DOWNLOAD_DIR}" ]; then
-                DOWNLOAD_DIR="${arg}"
-            elif [ -z "${ASTUDIO_DIR}" ]; then
-                ASTUDIO_DIR="${arg}"
-            elif [ -z "${STUDIO_FILE}" ]; then
-                STUDIO_FILE="${arg}"
-            else
-                println "Unknown argument: ${!i}"
-                println "${USAGE}"
-                println "See -h for more info"
-                exit
-            fi
+            std_err "Unknown argument: ${!i}"
+            std_err "${USAGE}"
+            std_err "See -h for more information"
+            exit 1
         fi
     done
 
@@ -55,8 +47,8 @@ parse_arguments() {
     if [ -z "${DOWNLOAD_DIR}" ] \
     || [ -z "${ASTUDIO_DIR}" ] \
     || [ -z "${STUDIO_FILE}" ]; then
-        println "${USAGE}"
-        println "See -h for more info"
+        std_err "${USAGE}"
+        std_err "See -h for more information"
         exit 1
     fi
 

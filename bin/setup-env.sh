@@ -2,6 +2,11 @@
 
 set -u
 
+EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
+EXEC_DIR="${EXEC_DIR%/}"
+ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
+source ${EXEC_DIR}/utilities.sh
+
 USAGE="Usage: ./setup-env.sh [-s|--silent] [-r|--root] [-e configuration file] [-m configuration file]"
 HELP_TEXT="
 OPTIONS
@@ -14,9 +19,6 @@ OPTIONS
 <configuration file>    The configuration file belonging to each script"
 HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
-EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
-
 ROOT=0
 SILENT_MODE=0
 SETUP_TOOLS=0
@@ -25,12 +27,6 @@ MODIFY_ENV=0
 ROOT_PASSWORD=""
 TOOLS_CONF=""
 MODIFY_CONF=""
-
-print_usage() {
-    printf "${USAGE}\n"
-    printf "See -h for more info\n"
-    exit
-} # usage()
 
 check_option_value() {
     local index="${1}"
@@ -46,10 +42,6 @@ check_option_value() {
 } # check_option_value()
 
 parse_arguments() {
-    if [ $# -eq 0 ]; then
-        print_usage
-    fi
-
     local show_help=0
     for ((i=1; i <= $#; i++)); do
         if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
@@ -63,8 +55,10 @@ parse_arguments() {
             i=$((i + 1))
             check_option_value ${i} $@
             if [ $? -eq 1 ]; then
-                printf "No configuration file given for '-e'!\n\n"
-                print_usage
+                std_err "No configuration file given for '-e'!\n"
+                std_err "${USAGE}"
+                std_err "See -h for more information"
+                exit 1
             else
                 TOOLS_CONF="${!i}"
             fi
@@ -73,32 +67,36 @@ parse_arguments() {
             i=$((i + 1))
             check_option_value ${i} $@
             if [ $? -eq 1 ]; then
-                printf "No configuration file given for '-m'!\n\n"
-                print_usage
+                std_err "No configuration file given for '-m'!\n"
+                std_err "${USAGE}"
+                std_err "See -h for more information"
+                exit 1
             else
                 MODIFY_CONF="${!i}"
             fi
         else
-            printf "Unknown argument: ${!i}\n"
-            print_usage
+            std_err "Unknown argument: ${!i}\n"
+            std_err "${USAGE}"
+            std_err "See -h for more information"
+            exit 1
         fi
     done
 
     if [ ${show_help} -eq 1 ]; then
         if [ ${SILENT_MODE} -eq 0 ]; then
-            printf "${USAGE}\n"
-            printf "${HELP_TEXT}\n"
+            println "${USAGE}"
+            println "${HELP_TEXT}"
         fi
         exit
     fi
 
     if [ ${SETUP_TOOLS} -eq 1 ] && [ ! -f ${TOOLS_CONF} ]; then
-        printf "Setup tools configuration file does not exist!\n"
+        std_err "Setup tools configuration file does not exist!"
         exit 1
     fi
 
     if [ ${MODIFY_ENV} -eq 1 ] && [ ! -f ${MODIFY_CONF} ]; then
-        printf "Modify environment configuration file does not exist!\n"
+        std_err "Modify environment configuration file does not exist!"
         exit 1
     fi
 } # parse_arguments()
@@ -108,17 +106,17 @@ check_root() {
         local failed_count=0
         while true; do
             read -s -p "[sudo] password for $(whoami): " ROOT_PASSWORD
-            printf "\n"
-            printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ls &>/dev/null
+            println ""
+            println "${ROOT_PASSWORD}" | sudo -k -S -s ls &>/dev/null
             if [ $? -eq 0 ]; then
                 break
             else
                 failed_count=$((failed_count + 1))
                 if [ ${failed_count} -ge 3 ]; then
-                    printf "sudo: 3 incorrect password attempts\n"
+                    println "sudo: 3 incorrect password attempts"
                     exit
                 fi
-                printf "Sorry, try again.\n"
+                println "Sorry, try again."
             fi
         done
     fi
@@ -151,8 +149,8 @@ modify_env() {
 
 parse_arguments $@
 
-printf "Started $(date)\n"
+println "Started $(date)"
 check_root
 setup_tools
 modify_env
-printf "Finished $(date)\n"
+println "Finished $(date)"

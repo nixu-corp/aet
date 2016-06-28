@@ -51,12 +51,6 @@ G_PLATFORM_REGEX="^google_platform_architecture[[:blank:]]*=[[:blank:]]*\(.*\)"
 AVD_CONF_REGEX="^avd_configuration_files[[:blank:]]*=[[:blank:]]*\(.*\)"
 
 parse_arguments() {
-    if [ $# -eq 0 ]; then
-        println "${USAGE}"
-        println "See -h for more info"
-        exit 1
-    fi
-
     local show_help=0
     for i in $@; do
         if [ "${i}" == "-s" ] || [ "${i}" == "--silent" ]; then
@@ -69,8 +63,8 @@ parse_arguments() {
             else
                 println "Unknown argument: ${!i}"
                 println "${USAGE}"
-                println "See -h for more info"
-                exit
+                println "See -h for more information"
+                exit 1
             fi
         fi
     done
@@ -82,7 +76,7 @@ parse_arguments() {
 
     if [ -z "${CONF_FILE}" ]; then
         println "${USAGE}"
-        println "See -h for more info"
+        println "See -h for more information"
         exit 1
     fi
 } # parse_arguments()
@@ -147,7 +141,7 @@ check_filesystem() {
     ASDK_DIR="${ASDK_DIR%/}"
 
     if [ ! -d "${DOWNLOAD_DIR}" ]; then
-        println "Download directory not found!"
+        std_err "Download directory not found!"
         exit 1
     fi
 

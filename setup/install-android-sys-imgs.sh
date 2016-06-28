@@ -6,7 +6,7 @@ EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
-USAGE="./install-android-sys-imgs.sh <download directory> <android sdk directory> [-a android platforms] [-g google platforms] [-s|--silent]"
+USAGE="Usage: ./install-android-sys-imgs.sh <download directory> <android sdk directory> [-a android platforms] [-g google platforms] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -a <android platforms>      Android platforms comma-separated in this format: <API>:<platform>
@@ -32,12 +32,6 @@ A_PLATFORMS=()
 G_PLATFORMS=()
 
 parse_arguments() {
-    if [ $# -eq 0 ]; then
-        println "${USAGE}"
-        println "See -h for more info"
-        exit 1
-    fi
-
     local show_help=0
     for ((i = 1; i <= $#; i++)); do
         if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
@@ -62,17 +56,15 @@ parse_arguments() {
                 fi
                 G_PLATFORMS+=("${!j}")
             done
+        elif [ -z "${DOWNLOAD_DIR}" ]; then
+            DOWNLOAD_DIR="${!i}"
+        elif [ -z "${ASDK_DIR}" ]; then
+            ASDK_DIR="${!i}"
         else
-            if [ -z "${DOWNLOAD_DIR}" ]; then
-                DOWNLOAD_DIR="${!i}"
-            elif [ -z "${ASDK_DIR}" ]; then
-                ASDK_DIR="${!i}"
-            else
-                println "Unknown argument: ${!i}"
-                println "${USAGE}"
-                println "See -h for more info"
-                exit
-            fi
+            std_err "Unknown argument: ${!i}"
+            std_err "${USAGE}"
+            std_err "See -h for more information"
+            exit 1
         fi
     done
 
@@ -83,24 +75,24 @@ parse_arguments() {
 
     if [ -z "${DOWNLOAD_DIR}" ] \
     || [ -z "${ASDK_DIR}" ]; then
-        println "${USAGE}"
-        println "See -h for more info"
+        std_err "${USAGE}"
+        std_err "See -h for more information"
         exit 1
     fi
 
     if [ ! -d ${ASDK_DIR} ]; then
-        println "Android SDK directory does not exist!"
+        std_err "Android SDK directory does not exist!"
         exit 1
     fi
 
     if [ ${#A_PLATFORMS[@]} -eq 0 ] && [ ${#G_PLATFORMS[@]} -eq 0 ]; then
-        println "No platforms have been specified!"
+        std_err "No platforms have been specified!"
         exit 1
     fi
 
     mkdir -p ${DOWNLOAD_DIR} &>/dev/null
     if [ ! -d ${DOWNLOAD_DIR} ]; then
-        println "Download directory does not exist!"
+        std_err "Download directory does not exist!"
     fi
 } # parse_arguments()
 

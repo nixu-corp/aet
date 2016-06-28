@@ -2,48 +2,10 @@
 
 set -u
 
-#############################
-# Outline
-#############################
-# Global variables
-#
-# General functions
-#   println()
-#   printfln()
-#   message()
-#   fmessage()
-#   error()
-#   abort()
-#   check_option_value()
-#   setup()
-#   parse_arguments()
-#   read_conf()
-#   read_sys_img_file()
-#   check_files()
-#   prepare_filesystem()
-#   cleanup()
-#   printResult()
-#
-# Ramdisk.img functions
-#   decompress_ramdisk()
-#   change_ramdisk_props()
-#   compress_ramdisk()
-#
-# System.img functions
-#   mount_system()
-#   change_system_props()
-#   unmount_system()
-#
-# Run loop
-#   run()
-#
-# MAIN; Entry point
-#
-#############################
-
-####################
-# Global variables
-####################
+EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+EXEC_DIR=${EXEC_DIR%/}
+ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
+source ${ROOT_DIR}/utilities.sh
 
 USAGE="Usage: ./modify-env.sh [-s|--silent] [-r sudo password] <configuration file>"
 HELP_TEXT="
@@ -73,19 +35,16 @@ WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*#"
 SYS_IMG_REGEX="^system_img_dir_file[[:blank:]]*=[[:blank:]]*\(.*\)"
 
-EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 TMP_RAMDISK_DIR="ramdisk"
 TMP_MOUNT_DIR="mount"
 SYS_IMG_DIR=""
 MKBOOTFS_FILE="mkbootfs"
-RAMDISK_FILE="ramdisk.img"
 SYSTEM_FILE="system.img"
-
+RAMDISK_FILE="ramdisk.img"
 DEFAULT_PROP_FILE="default.prop"
+
 BUILD_PROP_FILE="build.prop"
 
-SILENT_MODE=0          # 0 = off, 1 = on
 SUCCESSES=0
 
 declare -a SYS_IMG_DIRS=()
@@ -95,45 +54,12 @@ declare -A build_prop_changes
 #######################
 # General functions
 #######################
-
-println() {
-    if [ $# -eq 0 ]; then
-        printf "\n"
-    else
-        printf "${1}\n"
-    fi
-} # println()
-
-printfln() {
-    if [ $# -eq 0 ]; then
-        printf "\n"
-    else
-        printf "%s\n" "${1}"
-    fi
-} # printfln()
-
-message() {
-    if [ ${SILENT_MODE} -eq 0 ]; then
-        println "${1}"
-    fi
-} # message()
-
-fmessage() {
-    if [ ${SILENT_MODE} -eq 0 ]; then
-        printfln "${1}"
-    fi
-} # fmessage()
-
-error() {
-    message "$@" 1>&2
-} # error()
-
 abort() {
-    message ""
-    message "ABORTING..."
-    message "Cleanup"
+    std_err ""
+    std_err "ABORTING..."
+    std_err "Cleanup"
     cleanup
-    println "\033[0;31mFailure!\033[0m"
+    std_err "\033[0;31mFailure!\033[0m"
     exit
 } # abort()
 
@@ -165,38 +91,46 @@ setup() {
 } # setup()
 
 parse_arguments() {
-    SILENT_MODE=0
-
-    if [ $# -eq 0 ] || [ $# -gt 3 ]; then
-        error "${USAGE}"
-        error "See -h for more info"
-        exit
-    fi
-
+    local show_help=0
     for ((i = 1; i <= $#; i++)); do
         if [ "${!i}" == "-r" ] || [ "${!i}" == "--root" ]; then
             i=$((i + 1))
             check_option_value ${i} $@
             if [ $? -eq 1 ]; then
-                error "No sudo password given!\n"
-                error "${USAGE}"
-                error "See -h for more info"
-                exit
+                std_err "No sudo password given!\n"
+                std_err "${USAGE}"
+                std_err "See -h for more info"
+                exit 1
             else
                 SUDO_PASSWORD="${!i}"
             fi
         elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
-            println "${HELP_MSG}"
-            exit
-        else
+            show_help=1
+        elif [ -z "${CONF_FILE}" ]; then
             CONF_FILE="${!i}"
+        else
+            std_err "Unknown argument: ${!i}"
+            std_err "${USAGE}"
+            std_err "See -h for more info"
+            exit 1
         fi
     done
 
+    if [ ${show_help} -eq 1 ]; then
+        print_help
+        exit
+    fi
+
+    if [ -z "${CONF_FILE}" ]; then
+        println "${USAGE}"
+        println "See -h for more info"
+        exit 1
+    fi
+
     if [ ! -f ${CONF_FILE} ]; then
-        error "Configuration file does not exist!"
+        std_err "Configuration file does not exist!"
         abort
     fi
 } # parse_arguments()
@@ -214,8 +148,9 @@ read_conf() {
         local sys_img_dir_file_capture=$(expr "${line}" : "${SYS_IMG_REGEX}")
         if [ ! -z "${sys_img_dir_file_capture}" ]; then
             SYS_IMG_FILE="${sys_img_dir_file_capture}"
+            SYS_IMG_FILE="${SYS_IMG_FILE%/}"
         else
-            error "Unknown configuration found: ${line}"
+            std_err "Unknown configuration found: ${line}"
             abort
         fi
     done < "${CONF_FILE}"
@@ -223,9 +158,9 @@ read_conf() {
 
 read_sys_img_file() {
     if [ ! -f ${SYS_IMG_FILE} ]; then
-        error "System image directory file cannot be found!"
-        error "Please verify the path in the configuration file"
-        exit
+        std_err "System image directory file cannot be found!"
+        std_err "Please verify the path in the configuration file"
+        exit 1
     fi
 
     while read line; do
@@ -242,63 +177,63 @@ read_sys_img_file() {
 check_files() {
     local msg=()
 
-    message "Checking files"
+    println "Checking files"
 
     if [ -f "${SYS_IMG_DIR}/${RAMDISK_FILE}" ]; then
-        message "[\033[0;32mOK\033[0m]   ${SYS_IMG_DIR}/${RAMDISK_FILE}"
+        println "[\033[0;32mOK\033[0m]   ${SYS_IMG_DIR}/${RAMDISK_FILE}"
     else
-        message "[\033[0;31mFAIL\033[0m] ${SYS_IMG_DIR}/${RAMDISK_FILE}"
+        println "[\033[0;31mFAIL\033[0m] ${SYS_IMG_DIR}/${RAMDISK_FILE}"
         msg+=("Ramdisk image cannot be found!")
     fi
 
     if [ -f "${SYS_IMG_DIR}/${SYSTEM_FILE}" ]; then
-        message "[\033[0;32mOK\033[0m]   ${SYS_IMG_DIR}/${SYSTEM_FILE}"
+        println "[\033[0;32mOK\033[0m]   ${SYS_IMG_DIR}/${SYSTEM_FILE}"
     else
-        message "[\033[0;31mFAIL\033[0m] ${SYS_IMG_DIR}/${SYSTEM_FILE}"
+        println "[\033[0;31mFAIL\033[0m] ${SYS_IMG_DIR}/${SYSTEM_FILE}"
         msg+=("System image cannot be found!")
     fi
 
     ROOT_DIR=${ROOT_DIR%/}
     if [ -f "${ROOT_DIR}/bin/${MKBOOTFS_FILE}" ]; then
-        message "[\033[0;32mOK\033[0m]   ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
+        println "[\033[0;32mOK\033[0m]   ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
     else
-        message "[\033[0;31mFAIL\033[0m] ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
+        println "[\033[0;31mFAIL\033[0m] ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
         msg+=("mkbootfs cannot be found. Please download a new setup package")
     fi
 
     if [ ${#msg[@]} -gt 0 ]; then
         for s in "${msg[@]}"; do
-            error "${s}"
+            std_err "${s}"
         done
         abort
     fi
 
-    message ""
+    println ""
 } # check_files()
 
 prepare_filesystem() {
-    message "Creating temporary directories"
+    println "Creating temporary directories"
 
     while [ -d "${ROOT_DIR}/${TMP_RAMDISK_DIR}" ]; do
         TMP_RAMDISK_DIR="${TMP_RAMDISK_DIR}0"
     done
-    message "   ${ROOT_DIR}/${TMP_RAMDISK_DIR}"
+    println "   ${ROOT_DIR}/${TMP_RAMDISK_DIR}"
     mkdir -p "${ROOT_DIR}/${TMP_RAMDISK_DIR}"
 
     while [ -d "${ROOT_DIR}/${TMP_MOUNT_DIR}" ]; do
         TMP_MOUNT_DIR="${TMP_MOUNT_DIR}0"
     done
-    message "   ${ROOT_DIR}/${TMP_MOUNT_DIR}"
+    println "   ${ROOT_DIR}/${TMP_MOUNT_DIR}"
     mkdir -p "${ROOT_DIR}/${TMP_MOUNT_DIR}"
 
-    message ""
+    println ""
 } # prepare_filesystem()
 
 
 cleanup() {
-    message "   Removing temporary ramdisk directory"
+    println "   Removing temporary ramdisk directory"
     rm -r "${ROOT_DIR}/${TMP_RAMDISK_DIR}" &>/dev/null
-    message "   Removing temporary mount directory"
+    println "   Removing temporary mount directory"
     rm -r "${ROOT_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
 } # cleanup()
 
@@ -315,57 +250,49 @@ printResult() {
     println "${prefix} Success: ${SUCCESSES}/${#SYS_IMG_DIRS[@]}"
 } # printResult()
 
-########################
-# Run loop
-########################
-
 run() {
     if [ ${#SYS_IMG_DIRS[@]} -eq 0 ]; then
-        return
+        return 1
     fi
 
-    message "${BANNER}"
+    println "${BANNER}"
 
     for i in "${SYS_IMG_DIRS[@]}"; do
         SYS_IMG_DIR="${i}"
 
         if [ -z "${SYS_IMG_DIR}" ] || [ ! -d "${SYS_IMG_DIR}" ]; then
-            message "Error in system image path: ${SYS_IMG_DIR}"
+            println "Error in system image path: ${SYS_IMG_DIR}"
             continue
         fi
 
-        fmessage "------------------------------------"
-        message "Setup \"${SYS_IMG_DIR}\""
-        message ""
+        printfln "------------------------------------"
+        println "Setup \"${SYS_IMG_DIR}\""
+        println ""
 
         check_files
         prepare_filesystem
 
-        message "Process ${RAMDISK_FILE}"
-        ${EXEC_DIR}/modify-ramdisk-img.sh ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
-        message ""
+        println "Process ${RAMDISK_FILE}"
+        ${ROOT_DIR}/modify/modify-ramdisk-img.sh ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
+        println ""
 
-        message "Process ${SYSTEM_FILE}"
+        println "Process ${SYSTEM_FILE}"
         if [ ! -z "${SUDO_PASSWORD}" ]; then
-            printf "${SUDO_PASSWORD}\n" | sudo -k -S -s ${EXEC_DIR}/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
+            printf "${SUDO_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
         else
-            message "   No root privileges, skipping..."
+            println "   No root privileges, skipping..."
         fi
-        message ""
+        println ""
 
-        message "Cleanup"
+        println "Cleanup"
         cleanup
-        fmessage "------------------------------------"
-        message ""
+        printfln "------------------------------------"
+        println ""
 
         ((SUCCESSES++))
     done
 } # run()
 
-
-########################
-# MAIN; Entry point
-########################
 setup
 parse_arguments $@
 read_conf

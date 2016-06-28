@@ -4,7 +4,7 @@ EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
 
-USAGE="./install-avd.sh <android sdk directory> <avd configuration files> [-s|--silent]"
+USAGE="Usage: ./install-avd.sh <android sdk directory> <avd configuration files> [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -s, --silent                Silent mode, suppresses all output except result
@@ -28,29 +28,16 @@ TAG_REGEX="^tag[[:blank:]]*=[[:blank:]]*\(.*\)"
 ABI_REGEX="^abi[[:blank:]]*=[[:blank:]]*\(.*\)"
 
 parse_arguments() {
-    if [ $# -lt 1 ]; then
-        println "${USAGE}"
-        exit 1
-    fi
-
-    if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-        println "${USAGE}"
-        println "${HELP_TEXT}"
-        exit
-    fi
-
     local show_help=0
     for ((i = 1; i <= $#; i++)); do
         if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
+        elif [ -z "${ANDROID_SDK_DIR}" ]; then
+            ANDROID_SDK_DIR="${!i}"
         else
-            if [ -z "${ANDROID_SDK_DIR}" ]; then
-                ANDROID_SDK_DIR="${!i}"
-            else
-                AVD_CONF_FILES+=("${ROOT_DIR}/conf/${!i}")
-            fi
+            AVD_CONF_FILES+=("${ROOT_DIR}/conf/${!i}")
         fi
     done
 
@@ -60,23 +47,27 @@ parse_arguments() {
     fi
 
     if [ -z "${ANDROID_SDK_DIR}" ]; then
-        println "${USAGE}"
-        println "See -h for more info"
+        std_err "${USAGE}"
+        std_err "See -h for more information"
         exit 1
     fi
 
     if [ ! -d ${ANDROID_SDK_DIR} ]; then
-        println "Android SDK directory does not exist!"
+        std_err "Android SDK directory does not exist!"
         exit 1
     fi
 
     if [ ${#AVD_CONF_FILES[@]} -eq 0 ]; then
-        println "No AVD configuration files have been specified!"
+        std_err "No AVD configuration files have been specified!"
         exit 1
     fi
 } # parse_arguments()
 
 install_avds() {
+    printfln "---------------------------------------"
+    println "Installing AVD's"
+    printfln "---------------------------------------"
+
     for avd_conf in ${AVD_CONF_FILES[@]}; do
         AVD_NAME=""
         AVD_TARGET=""
@@ -94,7 +85,7 @@ install_avds() {
 read_conf() {
     local conf_file="$1"
     if [ ! -f ${conf_file} ]; then
-        println "AVD configuration file not found!"
+        std_err "AVD configuration file not found!"
         return 1
     fi
 
@@ -130,22 +121,22 @@ read_conf() {
     fi
 
     if [ -z "${AVD_NAME}" ]; then
-        println "AVD's name has not been specified!"
+        std_err "AVD's name has not been specified!"
         return 1
     fi
 
     if [ -z "${AVD_TARGET}" ]; then
-        println "AVD's target has not been specified!"
+        std_err "AVD's target has not been specified!"
         return 1
     fi
 
     if [ -z "${AVD_TAG}" ]; then
-        println "AVD's tag has not been specified!"
+        std_err "AVD's tag has not been specified!"
         return 1
     fi
 
     if [ -z "${AVD_ABI}" ]; then
-        println "AVD's abi has not been specified!"
+        std_err "AVD's abi has not been specified!"
         return 1
     fi
 } # read_conf()
@@ -153,7 +144,7 @@ read_conf() {
 check_avd() {
     local avds=$(${ANDROID_SDK_DIR}/$(ls ${ANDROID_SDK_DIR})/tools/android list avd)
     if [ ! -z "$(printf "${avds}\n" | grep "Name: ${AVD_NAME}")" ]; then
-        println "There is already an AVD with the same name!"
+        std_err "There is already an AVD with the same name!"
         return 1
     fi
 
@@ -176,12 +167,12 @@ check_avd() {
     done <<< "${targets}"
 
     if [ ${target_ok} -eq 0 ]; then
-        println "AVD target is not valid, please check the configuration file"
+        std_err "AVD target is not valid, please check the configuration file"
         return 1
     fi
 
     if [ ${tag_abi_ok} -eq 0 ]; then
-        println "Tag/ABI combination not found, please check the configuration file"
+        std_err "Tag/ABI combination not found, please check the configuration file"
         return 1
     fi
 } # check_avd()
@@ -200,8 +191,5 @@ create_avd() {
     println ""
 } # create_avd()
 
-printfln "---------------------------------------"
-println "Installing AVD's"
-printfln "---------------------------------------"
 parse_arguments $@
 install_avds
