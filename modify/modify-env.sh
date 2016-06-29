@@ -121,7 +121,7 @@ parse_arguments() {
         abort
     fi
 
-    prompt_root &>/dev/null
+    [ $(id -u) -eq 0 ] || prompt_root &>/dev/null
 } # parse_arguments()
 
 read_conf() {
@@ -161,6 +161,12 @@ read_sys_img_file() {
 
         SYS_IMG_DIRS+=("${line}")
     done < "${SYS_IMG_FILE}"
+
+    if [ ${#SYS_IMG_DIRS[@]} -eq 0 ]; then
+        std_err "No system images specified!"
+        std_err "Please add some to ${SYS_IMG_FILE}"
+        exit 1
+    fi
 } # read_sys_img_file()
 
 check_files() {
@@ -201,8 +207,9 @@ check_files() {
 } # check_files()
 
 printResult() {
-    if [ -z "${ROOT_PASSWORD}" ]; then
-        println "NOTE: You are running without root privileges, some functionality might be suppressed.\nPlease use the --root flag.\nSee -h for more info\n"
+    if [ $(id -u) -ne 0 ] && [ -z "${ROOT_PASSWORD}" ]; then
+        println "NOTE: You are running without root privileges, some functionality might be suppressed."
+        println "See -h for more information"
     fi
 
     if [ ${SUCCESSES} -eq ${#SYS_IMG_DIRS[@]} ] && [ ${SUCCESSES} -gt 0 ]; then
@@ -239,7 +246,9 @@ run() {
         println ""
 
         println "Process ${SYSTEM_FILE}"
-        if [ ! -z "${ROOT_PASSWORD}" ]; then
+        if [ $(id -u) -eq 0 ]; then
+            ${ROOT_DIR}/modify/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
+        elif [ ! -z "${ROOT_PASSWORD}" ]; then
             printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
         else
             println "   No root privileges, skipping..."

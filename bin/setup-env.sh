@@ -8,12 +8,11 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./setup-env.sh [-s|--silent] [-r|--root] [-e configuration file] [-m configuration file]"
+USAGE="Usage: ./setup-env.sh [-s|--silent] [-e configuration file] [-m configuration file]"
 HELP_TEXT="
 OPTIONS
 -e, --environment       Installs the environment and the necessary tools
 -m, --modify            Modifies the environment to evade emulation detection
--r, --root              Runs the necessary script(s) with root privileges
 -s, --silent            Silent mode, suppresses all output except result
 -h, --help              Display this help and exit
 
@@ -48,8 +47,6 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
-        elif [ "${!i}" == "-r" ] || [ "${!i}" == "--root" ]; then
-            ROOT=1
         elif [ "${!i}" == "-e" ] || [ "${!i}" == "--environment" ]; then
             SETUP_TOOLS=1
             i=$((i + 1))
@@ -105,7 +102,7 @@ parse_arguments() {
 } # parse_arguments()
 
 check_root() {
-    if [ ${ROOT} -eq 1 ] && [ ${MODIFY_ENV} -eq 1 ]; then
+    if [ $(id -u) -ne 0 ] && [ ${MODIFY_ENV} -eq 1 ]; then
         prompt_root
         [ $? -eq 0 ] || exit 1
     fi
