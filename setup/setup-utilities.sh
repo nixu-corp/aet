@@ -62,9 +62,9 @@ unzip_file() {
     loading "Unzipping \033[1;35m${file}\033[0m" &
     local extension="${file##*.}"
     if [ "${extension}" == "gz" ] || [ "${extension}" == "tgz" ]; then
-        tar -zxvf "${src_dir}/${file}" -C "${dest_dir}" &>/dev/null
+        tar -zxvf "${src_dir}/${file}" --overwrite -C "${dest_dir}" &>/dev/null
     elif [ "${extension}" == "zip" ]; then
-        unzip -d "${dest_dir}" "${src_dir}/${file}" &>/dev/null
+        unzip -o -d "${dest_dir}" "${src_dir}/${file}" &>/dev/null
     else
         printf "Unknown file format"
     fi
