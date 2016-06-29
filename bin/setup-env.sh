@@ -40,6 +40,21 @@ check_option_value() {
     fi
 } # check_option_value()
 
+check_dependencies() {
+    local ret=0
+    if [ -z "$(which java)" ]; then
+        ret=1
+        std_err "Dependency missing: Java"
+    fi
+
+    if [ -z "$(which xmlstarlet)" ]; then
+        ret=1
+        std_err "Dependency missing: XMLStarlet"
+    fi
+
+    [ ${ret} -eq 0 ] || exit 1
+} # check_dependencies()
+
 parse_arguments() {
     local show_help=0
     for ((i=1; i <= $#; i++)); do
@@ -130,6 +145,7 @@ modify_env() {
     fi
 } # modify_env()
 
+check_dependencies
 parse_arguments $@
 
 println "Started $(date)"
