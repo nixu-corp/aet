@@ -2,7 +2,6 @@
 
 ROOT_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
-
 source ${ROOT_DIR}/utilities.sh
 
 download_file() {
@@ -39,7 +38,7 @@ check_downloaded_file() {
         println "Correct SHA1            ${reference_sha1}"
         return 1
     else
-        println "[\033[0;32mOK\033[0m]   SHA1 checksum match"
+        println "[\033[0;32m OK \033[0m] SHA1 checksum match"
     fi
 
     local reference_size=$(printf "%s" "${reference_data}" | cut -d '|' -f 2)
@@ -51,7 +50,7 @@ check_downloaded_file() {
         println "Correct file size:      ${reference_size}"
         return 1
     else
-        println "[\033[0;32mOK\033[0m]   File size match"
+        println "[\033[0;32m OK \033[0m] File size match"
     fi
 } # check_downloaded_file()
 

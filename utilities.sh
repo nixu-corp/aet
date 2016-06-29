@@ -63,3 +63,29 @@ clear_printfln() {
 std_err() {
     println "${1}" 1>&2
 } # std_err()
+
+prompt_root() {
+    # @description This function prompts the user for their root password and stores
+    # the result in 'ROOT_PASSWORD', if function fails then 'ROOT_PASSWORD' is
+    # cleared
+    #
+    # @return If the user fails to give the correct password 3 times the function
+    # returns 1, if succeeds then 0
+
+    local failed_count=0
+    while true; do
+        read -s -p "[sudo] password for $(whoami): " ROOT_PASSWORD
+        println ""
+        println "${ROOT_PASSWORD}" | sudo -k -S -s ls &>/dev/null
+        if [ $? -eq 0 ]; then
+            return 0
+        else
+            failed_count=$((failed_count + 1))
+            if [ ${failed_count} -ge 3 ]; then
+                println "sudo: 3 incorrect password attempts"
+                return 1
+            fi
+            println "Sorry, try again."
+        fi
+    done
+} # prompt_root()

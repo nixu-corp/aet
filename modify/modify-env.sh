@@ -7,11 +7,9 @@ EXEC_DIR=${EXEC_DIR%/}
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-env.sh [-s|--silent] [-r sudo password] <configuration file>"
+USAGE="Usage: ./modify-env.sh [-s|--silent] <configuration file>"
 HELP_TEXT="
 OPTIONS
--r, --root              By giving root privileges the script can utilize all
-                        functitonalities
 -s, --silent            Silent mode, suppresses all output except result
 -h, --help              Display this help and exit
 
@@ -29,7 +27,7 @@ BANNER="
 
 CONF_FILE=""
 SYS_IMG_FILE=""
-SUDO_PASSWORD=""
+ROOT_PASSWORD=""
 
 WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*#"
@@ -93,18 +91,7 @@ setup() {
 parse_arguments() {
     local show_help=0
     for ((i = 1; i <= $#; i++)); do
-        if [ "${!i}" == "-r" ] || [ "${!i}" == "--root" ]; then
-            i=$((i + 1))
-            check_option_value ${i} $@
-            if [ $? -eq 1 ]; then
-                std_err "No sudo password given!\n"
-                std_err "${USAGE}"
-                std_err "See -h for more info"
-                exit 1
-            else
-                SUDO_PASSWORD="${!i}"
-            fi
-        elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
+        if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
@@ -133,6 +120,8 @@ parse_arguments() {
         std_err "Configuration file does not exist!"
         abort
     fi
+
+    prompt_root &>/dev/null
 } # parse_arguments()
 
 read_conf() {
@@ -180,14 +169,14 @@ check_files() {
     println "Checking files"
 
     if [ -f "${SYS_IMG_DIR}/${RAMDISK_FILE}" ]; then
-        println "[\033[0;32mOK\033[0m]   ${SYS_IMG_DIR}/${RAMDISK_FILE}"
+        println "[\033[0;32m OK \033[0m] ${SYS_IMG_DIR}/${RAMDISK_FILE}"
     else
         println "[\033[0;31mFAIL\033[0m] ${SYS_IMG_DIR}/${RAMDISK_FILE}"
         msg+=("Ramdisk image cannot be found!")
     fi
 
     if [ -f "${SYS_IMG_DIR}/${SYSTEM_FILE}" ]; then
-        println "[\033[0;32mOK\033[0m]   ${SYS_IMG_DIR}/${SYSTEM_FILE}"
+        println "[\033[0;32m OK \033[0m] ${SYS_IMG_DIR}/${SYSTEM_FILE}"
     else
         println "[\033[0;31mFAIL\033[0m] ${SYS_IMG_DIR}/${SYSTEM_FILE}"
         msg+=("System image cannot be found!")
@@ -195,7 +184,7 @@ check_files() {
 
     ROOT_DIR=${ROOT_DIR%/}
     if [ -f "${ROOT_DIR}/bin/${MKBOOTFS_FILE}" ]; then
-        println "[\033[0;32mOK\033[0m]   ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
+        println "[\033[0;32m OK \033[0m] ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
     else
         println "[\033[0;31mFAIL\033[0m] ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
         msg+=("mkbootfs cannot be found. Please download a new setup package")
@@ -211,39 +200,13 @@ check_files() {
     println ""
 } # check_files()
 
-prepare_filesystem() {
-    println "Creating temporary directories"
-
-    while [ -d "${ROOT_DIR}/${TMP_RAMDISK_DIR}" ]; do
-        TMP_RAMDISK_DIR="${TMP_RAMDISK_DIR}0"
-    done
-    println "   ${ROOT_DIR}/${TMP_RAMDISK_DIR}"
-    mkdir -p "${ROOT_DIR}/${TMP_RAMDISK_DIR}"
-
-    while [ -d "${ROOT_DIR}/${TMP_MOUNT_DIR}" ]; do
-        TMP_MOUNT_DIR="${TMP_MOUNT_DIR}0"
-    done
-    println "   ${ROOT_DIR}/${TMP_MOUNT_DIR}"
-    mkdir -p "${ROOT_DIR}/${TMP_MOUNT_DIR}"
-
-    println ""
-} # prepare_filesystem()
-
-
-cleanup() {
-    println "   Removing temporary ramdisk directory"
-    rm -r "${ROOT_DIR}/${TMP_RAMDISK_DIR}" &>/dev/null
-    println "   Removing temporary mount directory"
-    rm -r "${ROOT_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
-} # cleanup()
-
 printResult() {
-    if [ -z "${SUDO_PASSWORD}" ]; then
+    if [ -z "${ROOT_PASSWORD}" ]; then
         println "NOTE: You are running without root privileges, some functionality might be suppressed.\nPlease use the --root flag.\nSee -h for more info\n"
     fi
 
     if [ ${SUCCESSES} -eq ${#SYS_IMG_DIRS[@]} ] && [ ${SUCCESSES} -gt 0 ]; then
-        prefix="[\033[0;32mOK\033[0m]"
+        prefix="[\033[0;32m OK \033[0m]"
     else
         prefix="[\033[0;31mFAIL\033[0m]"
     fi
@@ -270,23 +233,17 @@ run() {
         println ""
 
         check_files
-        prepare_filesystem
 
         println "Process ${RAMDISK_FILE}"
         ${ROOT_DIR}/modify/modify-ramdisk-img.sh ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
         println ""
 
         println "Process ${SYSTEM_FILE}"
-        if [ ! -z "${SUDO_PASSWORD}" ]; then
-            printf "${SUDO_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
+        if [ ! -z "${ROOT_PASSWORD}" ]; then
+            printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
         else
             println "   No root privileges, skipping..."
         fi
-        println ""
-
-        println "Cleanup"
-        cleanup
-        printfln "------------------------------------"
         println ""
 
         ((SUCCESSES++))

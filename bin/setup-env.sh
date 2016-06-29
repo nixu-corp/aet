@@ -5,7 +5,8 @@ set -u
 EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
-source ${EXEC_DIR}/utilities.sh
+ROOT_DIR="${ROOT_DIR%/}"
+source ${ROOT_DIR}/utilities.sh
 
 USAGE="Usage: ./setup-env.sh [-s|--silent] [-r|--root] [-e configuration file] [-m configuration file]"
 HELP_TEXT="
@@ -20,7 +21,6 @@ OPTIONS
 HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
 ROOT=0
-SILENT_MODE=0
 SETUP_TOOLS=0
 MODIFY_ENV=0
 
@@ -83,11 +83,14 @@ parse_arguments() {
     done
 
     if [ ${show_help} -eq 1 ]; then
-        if [ ${SILENT_MODE} -eq 0 ]; then
-            println "${USAGE}"
-            println "${HELP_TEXT}"
-        fi
+        print_help
         exit
+    fi
+
+    if [ ${SETUP_TOOLS} -eq 0 ] && [ ${MODIFY_ENV} -eq 0 ]; then
+        std_err "${USAGE}"
+        std_err "See -h for more information"
+        exit 1
     fi
 
     if [ ${SETUP_TOOLS} -eq 1 ] && [ ! -f ${TOOLS_CONF} ]; then
@@ -103,22 +106,8 @@ parse_arguments() {
 
 check_root() {
     if [ ${ROOT} -eq 1 ] && [ ${MODIFY_ENV} -eq 1 ]; then
-        local failed_count=0
-        while true; do
-            read -s -p "[sudo] password for $(whoami): " ROOT_PASSWORD
-            println ""
-            println "${ROOT_PASSWORD}" | sudo -k -S -s ls &>/dev/null
-            if [ $? -eq 0 ]; then
-                break
-            else
-                failed_count=$((failed_count + 1))
-                if [ ${failed_count} -ge 3 ]; then
-                    println "sudo: 3 incorrect password attempts"
-                    exit
-                fi
-                println "Sorry, try again."
-            fi
-        done
+        prompt_root
+        [ $? -eq 0 ] || exit 1
     fi
 } # check_root()
 
@@ -135,15 +124,12 @@ setup_tools() {
 
 modify_env() {
     if [ ${MODIFY_ENV} -eq 1 ]; then
-        local modifiers=""
+        local modifier=""
         if [ ${SILENT_MODE} -eq 1 ]; then
-            modifiers="${modifiers} --silent"
-        fi
-        if [ ${ROOT} -eq 1 ]; then
-            modifiers="${modifiers} --root ${ROOT_PASSWORD}"
+            modifier="--silent"
         fi
 
-        ${ROOT_DIR}/modify/modify-env.sh ${modifiers} ${MODIFY_CONF}
+        printf "${ROOT_PASSWORD}\n" | ${ROOT_DIR}/modify/modify-env.sh ${modifier} ${MODIFY_CONF}
     fi
 } # modify_env()
 
