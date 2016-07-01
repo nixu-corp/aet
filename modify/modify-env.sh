@@ -7,12 +7,16 @@ EXEC_DIR=${EXEC_DIR%/}
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-env.sh [-s|--silent] <configuration file>"
+USAGE="Usage: ./modify-env.sh [-b|--backup] [-s|--silent] <configuration file>"
 HELP_TEXT="
 OPTIONS
+-b, --backup            Backups before making any modifications, use
+                        this if you plan on reverting back at some
+                        point
 -s, --silent            Silent mode, suppresses all output except result
 -h, --help              Display this help and exit
 
+<backup directory>      The directory where to store the backups
 <configuration file>    Configuration file for modify-env script"
 HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
@@ -25,6 +29,7 @@ BANNER="
 ========================================
 "
 
+BACKUP_DIR=""
 CONF_FILE=""
 SYS_IMG_FILE=""
 ROOT_PASSWORD=""
@@ -32,10 +37,15 @@ ROOT_PASSWORD=""
 WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*#"
 SYS_IMG_REGEX="^system_img_dir_file[[:blank:]]*=[[:blank:]]*\(.*\)"
+RAM_MOD_REGEX="^ramdisk_modification_file[[:blank:]]*=[[:blank:]]*\(.*\)"
+SYS_MOD_REGEX="^system_modification_file[[:blank:]]*=[[:blank:]]*\(.*\)"
+BACKUP_DIR_REGEX="^backup_directory[[:blank:]]*=[[:blank:]]*\(.*\)"
 
 TMP_RAMDISK_DIR="ramdisk"
 TMP_MOUNT_DIR="mount"
 SYS_IMG_DIR=""
+RAMDISK_MODIFICATION_FILE=""
+SYSTEM_MODIFICATION_FILE=""
 MKBOOTFS_FILE="mkbootfs"
 SYSTEM_FILE="system.img"
 RAMDISK_FILE="ramdisk.img"
@@ -43,6 +53,7 @@ DEFAULT_PROP_FILE="default.prop"
 
 BUILD_PROP_FILE="build.prop"
 
+DO_BACKUP=0
 SUCCESSES=0
 
 declare -a SYS_IMG_DIRS=()
@@ -52,15 +63,6 @@ declare -A build_prop_changes
 #######################
 # General functions
 #######################
-abort() {
-    std_err ""
-    std_err "ABORTING..."
-    std_err "Cleanup"
-    cleanup
-    std_err "\033[0;31mFailure!\033[0m"
-    exit
-} # abort()
-
 check_option_value() {
     local index="${1}"
     index=$((index + 1))
@@ -74,20 +76,6 @@ check_option_value() {
     fi
 } # check_option_value()
 
-setup() {
-    default_prop_changes["ro.secure"]="1"
-    default_prop_changes["ro.bootimage.build.fingerprint"]="fingerprint"
-
-    build_prop_changes["ro.build.host"]="host"
-    build_prop_changes["ro.build.fingerprint"]="fingerprint"
-    build_prop_changes["ro.build.product"]="product"
-    build_prop_changes["ro.product.name"]="name"
-    build_prop_changes["ro.product.manufacturer"]="known"
-    build_prop_changes["ro.product.brand"]="Android"
-    build_prop_changes["ro.product.device"]="device"
-    build_prop_changes["ro.product.model"]="model"
-} # setup()
-
 parse_arguments() {
     local show_help=0
     for ((i = 1; i <= $#; i++)); do
@@ -95,6 +83,8 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
+        elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
+            DO_BACKUP=1
         elif [ -z "${CONF_FILE}" ]; then
             CONF_FILE="${!i}"
         else
@@ -118,7 +108,7 @@ parse_arguments() {
 
     if [ ! -f ${CONF_FILE} ]; then
         std_err "Configuration file does not exist!"
-        abort
+        exit 1
     fi
 
     [ $(id -u) -eq 0 ] || prompt_root &>/dev/null
@@ -135,12 +125,21 @@ read_conf() {
         fi
 
         local sys_img_dir_file_capture=$(expr "${line}" : "${SYS_IMG_REGEX}")
+        local ramdisk_mod_file_capture=$(expr "${line}" : "${RAM_MOD_REGEX}")
+        local system_mod_file_capture=$(expr "${line}" : "${SYS_MOD_REGEX}")
+        local backup_dir_capture=$(expr "${line}" : "${BACKUP_DIR_REGEX}")
         if [ ! -z "${sys_img_dir_file_capture}" ]; then
             SYS_IMG_FILE="${sys_img_dir_file_capture}"
             SYS_IMG_FILE="${SYS_IMG_FILE%/}"
+        elif [ ! -z "${ramdisk_mod_file_capture}" ]; then
+            RAMDISK_MODIFICATION_FILE="${ramdisk_mod_file_capture}"
+        elif [ ! -z "${system_mod_file_capture}" ]; then
+            SYSTEM_MODIFICATION_FILE="${system_mod_file_capture}"
+        elif [ ! -z "${backup_dir_capture}" ]; then
+            BACKUP_DIR="${backup_dir_capture}"
         else
             std_err "Unknown configuration found: ${line}"
-            abort
+            exit 1
         fi
     done < "${CONF_FILE}"
 } # read_conf()
@@ -200,7 +199,7 @@ check_files() {
         for s in "${msg[@]}"; do
             std_err "${s}"
         done
-        abort
+        exit 1
     fi
 
     println ""
@@ -227,6 +226,11 @@ run() {
 
     println "${BANNER}"
 
+    local modifier=""
+    if [ ${DO_BACKUP} -eq 1 ]; then
+        modifier="--backup ${BACKUP_DIR}"
+    fi
+
     for i in "${SYS_IMG_DIRS[@]}"; do
         SYS_IMG_DIR="${i}"
 
@@ -242,14 +246,14 @@ run() {
         check_files
 
         println "Process ${RAMDISK_FILE}"
-        ${ROOT_DIR}/modify/modify-ramdisk-img.sh ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
+        ${ROOT_DIR}/modify/modify-ramdisk-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_MODIFICATION_FILE} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
         println ""
 
         println "Process ${SYSTEM_FILE}"
         if [ $(id -u) -eq 0 ]; then
-            ${ROOT_DIR}/modify/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
+            ${ROOT_DIR}/modify/modify-system-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
         elif [ ! -z "${ROOT_PASSWORD}" ]; then
-            printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
+            printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
         else
             println "   No root privileges, skipping..."
         fi
@@ -259,7 +263,6 @@ run() {
     done
 } # run()
 
-setup
 parse_arguments $@
 read_conf
 read_sys_img_file

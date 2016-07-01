@@ -6,27 +6,39 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-ramdisk-img.sh <system image dir> <ramdisk directory> [ramdisk image file] [default prop file] [mkbootfs file]"
+USAGE="Usage: ./modify-ramdisk-img.sh [-b backup directory] <system image dir> <ramdisk directory> <modification file> [ramdisk image file] [default prop file] [mkbootfs file]"
 HELP_TEXT="
 OPTIONS
+-b, --backup                Backups before making any modifications, use
+                            this if you plan on reverting back at some
+                            point
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
 <system image directory>    Directory of the installed system image
 <ramdisk directory>         Directory where the ramdisk file is being unzipped to
+<modification file>         File with the modifications in key-value pairs
 [ramdisk image file]        OPTIONAL: The name of the ramdisk image file
                                 default: ramdisk.img
 [default prop file]         OPTIONAL: The name of the default property file
                                 default: default.prop
 [mkbootfs file]             OPTIONAL: The name of the mkbootfs binary
                                 default: mkbootfs"
-
+MODIFICATION_FILE=""
 SYS_IMG_DIR=""
 TMP_RAMDISK_DIR=""
+BACKUP_DIR=""
 
 RAMDISK_FILE=""
 DEFAULT_PROP_FILE=""
 MKBOOTFS_FILE=""
+
+WHITESPACE_REGEX="^[[:blank:]]*$"
+COMMENT_REGEX="^[[:blank:]]*#"
+KEY_REGEX="^[[:blank:]]*\(.*\)=.*$"
+VALUE_REGEX="^.*=\(.*\)$"
+
+declare -A default_prop_changes
 
 parse_arguments() {
     local show_help=0
@@ -35,12 +47,24 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
+            i=$((i + 1))
+            check_option_value ${i} $@
+            if [ $? -eq 1 ]; then
+                std_err "No backup directory given for '-b'!\n"
+                std_err "${USAGE}"
+                std_err "See -h for more information"
+            else
+                BACKUP_DIR="${!i}"
+            fi
         elif [ -z "${SYS_IMG_DIR}" ]; then
             SYS_IMG_DIR="${!i}"
             SYS_IMG_DIR="${SYS_IMG_DIR%/}"
         elif [ -z "${TMP_RAMDISK_DIR}" ]; then
             TMP_RAMDISK_DIR="${!i}"
             TMP_RAMDISK_DIR="${TMP_RAMDISK_DIR%/}"
+        elif [ -z "${MODIFICATION_FILE}" ]; then
+            MODIFICATION_FILE="${!i}"
         elif [ -z "${RAMDISK_FILE}" ]; then
             RAMDISK_FILE="${!i}"
         elif [ -z "${DEFAULT_PROP_FILE}" ]; then
@@ -50,7 +74,7 @@ parse_arguments() {
         else
             std_err "Unknown argument: ${!i}"
             std_err "${USAGE}"
-            std_err "See -h for more info"
+            std_err "See -h for more information"
             exit 1
         fi
     done
@@ -61,9 +85,10 @@ parse_arguments() {
     fi
 
     if [ -z "${SYS_IMG_DIR}" ] \
-    || [ -z "${TMP_RAMDISK_DIR}" ]; then
+    || [ -z "${TMP_RAMDISK_DIR}" ] \
+    || [ -z "${MODIFICATION_FILE}" ]; then
         std_err "${USAGE}"
-        std_err "See -h for more info"
+        std_err "See -h for more information"
         exit 1
     fi
 
@@ -79,8 +104,21 @@ parse_arguments() {
     mkdir -p "${ROOT_DIR}/${TMP_RAMDISK_DIR}"
 
     if [ ! -d ${ROOT_DIR}/${TMP_RAMDISK_DIR} ]; then
-        stderr "Temporary ramdisk directory cannot be created!"
+        std_err "Temporary ramdisk directory cannot be created!"
         exit 1
+    fi
+
+    if [ ! -f "${MODIFICATION_FILE}" ]; then
+        std_err "Modification file does not exist!"
+        exit 1
+    fi
+
+    if [ ! -z "${BACKUP_DIR}" ]; then
+        mkdir -p ${BACKUP_DIR}
+        if [ ! -d ${BACKUP_DIR} ]; then
+            std_err "Could not create backup directory!"
+            exit 1
+        fi
     fi
 
     if [ -z "${RAMDISK_FILE}" ]; then
@@ -95,6 +133,27 @@ parse_arguments() {
         MKBOOTFS_FILE="mkbootfs"
     fi
 } # parse_arguments()
+
+setup() {
+    while read line; do
+        if [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
+            continue
+        elif [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
+            continue
+        elif [ -z "${line}" ]; then
+            continue
+        fi
+
+        local key_capture=$(expr "${line}" : "${KEY_REGEX}")
+        local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
+        if [ ! -z "${key_capture}" ]; then
+            default_prop_changes["${key_capture}"]="${value_capture}"
+        else
+            std_err "Unknown configuration found: ${line}"
+            abort
+        fi
+    done < "${MODIFICATION_FILE}"
+} # setup()
 
 decompress_ramdisk() {
     local ret=0
@@ -112,6 +171,44 @@ decompress_ramdisk() {
     return ${ret}
 } # decompress_ramdisk()
 
+backup_ramdisk_props() {
+    local ret=0
+
+    [ ! -z "${BACKUP_DIR}" ] || return 0
+
+    if [ ! -f "${ROOT_DIR}/${TMP_RAMDISK_DIR}/${DEFAULT_PROP_FILE}" ]; then
+        std_err "   \033[0;31m${DEFAULT_PROP_FILE} is missing or you do not have access!\033[0m"
+        ret=1
+    fi
+
+    local backup_file="${DEFAULT_PROP_FILE}-$(date +%F-%H-%M-%S).bak"
+
+    if [ ${ret} -eq 0 ]; then
+        while read line; do
+            local key_capture=$(expr "${line}" : "${KEY_REGEX}")
+            local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
+            if [ -z "${key_capture}" ]; then
+                continue
+            fi
+
+            for key in ${!build_prop_changes[@]}; do
+                if [ "${key}" == "${key_capture}" ]; then
+                    printf "${key_capture}=${value_capture}\n" >> ${BACKUP_DIR}/${backup_file}
+                    break
+                fi
+            done
+        done < "${ROOT_DIR}/${TMP_RAMDISK_DIR}/${DEFAULT_PROP_FILE}"
+    fi
+
+    if [ ${ret} -eq 0 ]; then
+        println "   [\033[0;32m OK \033[0m] Backing up"
+    else
+        println "   [\033[0;31mFAIL\033[0m] Backing up"
+    fi
+
+    return ${ret}
+} # backup_ramdisk_props()
+
 change_ramdisk_props() {
     local ret=0
 
@@ -128,7 +225,7 @@ change_ramdisk_props() {
         done
 
         for key in "${!default_prop_changes[@]}"; do
-            value=${default_prop_changes[${key}]}
+            local value=${default_prop_changes[${key}]}
             sed "s/${key}=.*/${key}=${value}/" "${DEFAULT_PROP_FILE}" > ${default_new}
             mv ${default_new} "${DEFAULT_PROP_FILE}"
         done
@@ -168,5 +265,6 @@ cleanup() {
 } # cleanup
 
 parse_arguments $@
-decompress_ramdisk && [ $? -eq 0 ] && change_ramdisk_props && [ $? -eq 0 ] && compress_ramdisk
+setup
+decompress_ramdisk && [ $? -eq 0 ] && backup_ramdisk_props && [ $? -eq 0 ] && change_ramdisk_props && [ $? -eq 0 ] && compress_ramdisk
 cleanup

@@ -168,7 +168,8 @@ install_sdk_packages() {
                 else
                     printfln "---"
                     println "Failed to install some packages"
-                    break
+                    println ""
+                    return
                 fi
             else
                 printfln "---"
@@ -177,13 +178,14 @@ install_sdk_packages() {
                 else
                     println "Successfully installed packages"
                 fi
-                break
+                println ""
+                return
             fi
         else
             get_packages_info
         fi 
-        
     done
+    std_err "Failed to install packages!"
     println ""
 } # install_sdk_packages()
 

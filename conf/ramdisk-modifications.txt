@@ -1,0 +1,2 @@
+ro.secure=1
+ro.bootimage.build.fingerprint=fingerprint

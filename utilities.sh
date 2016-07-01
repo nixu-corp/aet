@@ -64,6 +64,19 @@ std_err() {
     println "${1}" 1>&2
 } # std_err()
 
+check_option_value() {
+    local index="${1}"
+    index=$((index + 1))
+
+    if [ ${index} -gt $(($#)) ] \
+    || [ $(expr "${!index}" : "^-.*$") -gt 0 ] \
+    || [ $(expr "${!index}" : "^$") -gt 0 ]; then
+        return 1
+    else
+        return 0
+    fi
+} # check_option_value()
+
 prompt_root() {
     # @description This function prompts the user for their root password and stores
     # the result in 'ROOT_PASSWORD', if function fails then 'ROOT_PASSWORD' is

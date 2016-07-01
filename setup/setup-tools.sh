@@ -57,15 +57,13 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
             show_help=1
+        elif [ -z "${CONF_FILE}" ]; then
+            CONF_FILE="${i}"
         else
-            if [ -z "${CONF_FILE}" ]; then
-                CONF_FILE="${i}"
-            else
-                println "Unknown argument: ${!i}"
-                println "${USAGE}"
-                println "See -h for more information"
-                exit 1
-            fi
+            std_err "Unknown argument: ${i}"
+            std_err "${USAGE}"
+            std_err "See -h for more information"
+            exit 1
         fi
     done
 
@@ -75,8 +73,8 @@ parse_arguments() {
     fi
 
     if [ -z "${CONF_FILE}" ]; then
-        println "${USAGE}"
-        println "See -h for more information"
+        std_err "${USAGE}"
+        std_err "See -h for more information"
         exit 1
     fi
 } # parse_arguments()

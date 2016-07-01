@@ -8,24 +8,37 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-system-img.sh <system image dir> <mount directory> [system image file] [build prop file]"
+USAGE="Usage: ./modify-system-img.sh [-b backup directory] <system image dir> <mount directory> <modification file> [system image file] [build prop file]"
 HELP_TEXT="
 OPTIONS
+-b, --backup                Backups before making any modifications, use
+                            this if you plan on reverting back at some
+                            point
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
 <system image directory>    Directory of the installed system image
 <mount directory>           Directory onto which the system.img file is being mounted
+<modification file>         File with the modifications in key-value pairs
 [system image file]         OPTIONAL: The name of the system image file
                                 default: system.img
 [build prop file]           OPTIONAL: The name of the build property file
                                 default: build.prop"
 
+MODIFICATION_FILE=""
 SYS_IMG_DIR=""
 TMP_MOUNT_DIR=""
+BACKUP_DIR=""
 
 SYSTEM_FILE=""
 BUILD_PROP_FILE=""
+
+WHITESPACE_REGEX="^[[:blank:]]*$"
+COMMENT_REGEX="^[[:blank:]]*#"
+KEY_REGEX="^[[:blank:]]*\(.*\)=.*$"
+VALUE_REGEX="^.*=\(.*\)$"
+
+declare -A build_prop_changes
 
 parse_arguments() {
     local show_help=0
@@ -34,10 +47,22 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
+            i=$((i + 1))
+            check_option_value ${i} $@
+            if [ $? -eq 1 ]; then
+                std_err "No backup directory given for '-b'!\n"
+                std_err "${USAGE}"
+                std_err "See -h for more information"
+            else
+                BACKUP_DIR="${!i}"
+            fi
         elif [ -z "${SYS_IMG_DIR}" ]; then
             SYS_IMG_DIR="${!i}"
         elif [ -z "${TMP_MOUNT_DIR}" ]; then
             TMP_MOUNT_DIR="${!i}"
+        elif [ -z "${MODIFICATION_FILE}" ]; then
+            MODIFICATION_FILE="${!i}"
         elif [ -z "${SYSTEM_FILE}" ]; then
             SYSTEM_FILE="${!i}"
         elif [ -z "${BUILD_PROP_FILE}" ]; then
@@ -56,7 +81,8 @@ parse_arguments() {
     fi
 
     if [ -z "${SYS_IMG_DIR}" ] \
-    || [ -z "${TMP_MOUNT_DIR}" ]; then
+    || [ -z "${TMP_MOUNT_DIR}" ] \
+    || [ -z "${MODIFICATION_FILE}" ]; then
         std_err "${USAGE}"
         std_err "See -h for more information"
         exit 1
@@ -78,6 +104,11 @@ parse_arguments() {
         exit 1
     fi
 
+    if [ ! -f "${MODIFICATION_FILE}" ]; then
+        std_err "Modification file does not exist!"
+        exit 1
+    fi
+
     if [ -z "${SYSTEM_FILE}" ]; then
         SYSTEM_FILE="system.img"
     fi
@@ -86,6 +117,26 @@ parse_arguments() {
         BUILD_PROP_FILE="build.prop"
     fi
 } # parse_arguments()
+
+setup() {
+    while read line; do
+        if [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
+            continue
+        elif [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
+            continue
+        elif [ -z "${line}" ]; then
+            continue
+        fi
+
+        local key_capture=$(expr "${line}" : "${KEY_REGEX}")
+        local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
+        if [ ! -z "${key_capture}" ]; then
+            build_prop_changes["${key_capture}"]="${value_capture}"
+        else
+            std_err "Unknown configuration found: ${line}"
+        fi
+    done < "${MODIFICATION_FILE}"
+} # setup()
 
 mount_system() {
     local ret=0
@@ -101,6 +152,44 @@ mount_system() {
     fi
     return ${ret}
 } # mount_system()
+
+backup_system_props() {
+    local ret=0
+
+    [ ! -z "${BACKUP_DIR}" ] || return 0
+
+    if [ ! -f "${ROOT_DIR}/${TMP_MOUNT_DIR}/${BUILD_PROP_FILE}" ]; then
+        std_err "   \033[0;31m${BUILD_PROP_FILE} is missing or you do not have access!\033[0m"
+        ret=1
+    fi
+
+    local backup_file="${BUILD_PROP_FILE}-$(date +%F-%H-%M-%S).bak"
+
+    if [ ${ret} -eq 0 ]; then
+        while read line; do
+            local key_capture=$(expr "${line}" : "${KEY_REGEX}")
+            local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
+            if [ -z "${key_capture}" ]; then
+                continue
+            fi
+
+            for key in ${!build_prop_changes[@]}; do
+                if [ "${key}" == "${key_capture}" ]; then
+                    printf "${key_capture}=${value_capture}\n" >> ${BACKUP_DIR}/${backup_file}
+                    break
+                fi
+            done
+        done < "${ROOT_DIR}/${TMP_MOUNT_DIR}/${BUILD_PROP_FILE}"
+    fi
+
+    if [ ${ret} -eq 0 ]; then
+        println "   [\033[0;32m OK \033[0m] Backing up"
+    else
+        println "   [\033[0;31mFAIL\033[0m] Backing up"
+    fi
+
+    return ${ret}
+} # backup_system_props()
 
 change_system_props() {
     local ret=0
@@ -165,5 +254,6 @@ cleanup() {
 
 parse_arguments $@
 clear_print ""
-mount_system && [ $? -eq 0 ] && change_system_props && [ $? -eq 0 ] && unmount_system
+setup
+mount_system && [ $? -eq 0 ] && backup_system_props && [ $? -eq 0 ] && change_system_props && [ $? -eq 0 ] && unmount_system
 cleanup

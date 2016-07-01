@@ -8,9 +8,10 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./setup-env.sh [-s|--silent] [-e configuration file] [-m configuration file]"
+USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-e configuration file] [-m configuration file]"
 HELP_TEXT="
 OPTIONS
+-b, --backup            Enable backup for modification scripts
 -e, --environment       Installs the environment and the necessary tools
 -m, --modify            Modifies the environment to evade emulation detection
 -s, --silent            Silent mode, suppresses all output except result
@@ -22,23 +23,11 @@ HELP_MSG="${USAGE}\n${HELP_TEXT}"
 ROOT=0
 SETUP_TOOLS=0
 MODIFY_ENV=0
+DO_BACKUP=0
 
 ROOT_PASSWORD=""
 TOOLS_CONF=""
 MODIFY_CONF=""
-
-check_option_value() {
-    local index="${1}"
-    index=$((index + 1))
-
-    if [ ${index} -gt $(($#)) ] \
-    || [ $(expr "${!index}" : "^-.*$") -gt 0 ] \
-    || [ $(expr "${!index}" : "^$") -gt 0 ]; then
-        return 1
-    else
-        return 0
-    fi
-} # check_option_value()
 
 check_dependencies() {
     local ret=0
@@ -62,6 +51,8 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
+        elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
+            DO_BACKUP=1
         elif [ "${!i}" == "-e" ] || [ "${!i}" == "--environment" ]; then
             SETUP_TOOLS=1
             i=$((i + 1))
@@ -136,12 +127,16 @@ setup_tools() {
 
 modify_env() {
     if [ ${MODIFY_ENV} -eq 1 ]; then
-        local modifier=""
+        local modifiers=""
         if [ ${SILENT_MODE} -eq 1 ]; then
-            modifier="--silent"
+            modifiers="--silent"
         fi
 
-        printf "${ROOT_PASSWORD}\n" | ${ROOT_DIR}/modify/modify-env.sh ${modifier} ${MODIFY_CONF}
+        if [ ${DO_BACKUP} -eq 1 ]; then
+            modifiers="${modifiers} --backup"
+        fi
+
+        printf "${ROOT_PASSWORD}\n" | ${ROOT_DIR}/modify/modify-env.sh ${modifiers} ${MODIFY_CONF}
     fi
 } # modify_env()
 
