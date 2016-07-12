@@ -244,9 +244,11 @@ unmount_system() {
         umount "${ROOT_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
         mountOutput="$(mount | grep "${ROOT_DIR}/${TMP_MOUNT_DIR}")"
         count=$((count + 1))
-        if [ ${count} -gt 3 ]; then
+        if [ ${count} -gt 5 ]; then
             ret=1
+            break
         fi
+        sleep 2.0
     done
 
     if [ ${ret} -eq 0 ]; then
