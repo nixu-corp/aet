@@ -2,7 +2,7 @@
 
 ## Table of contents ##
 ---
-* [Main features](#main-features)
+* [Description](#description)
 * [Prerequisites](#prerequisites)
 * [Getting Started](#getting-started)
 * [Documentation](#documentation)
@@ -10,7 +10,7 @@
 * [Contact information](#contact-information)
 
 
-## Main features ##
+## Description ##
 ---
 The purpose of this software is to make the testing of Android applications in
 a virtual environment easier, by providing a script that hides the signs of
@@ -31,18 +31,19 @@ unmodified environment.
 * [Setting up environment][5]
 * [Basic modification][6]
 * [Running emulator][7]
+* [Examples][8]
 
 
 ## Documentation ##
 ---
-The [Wiki][8] contains all the information needed.
+The [Wiki][9] contains all the information needed.
 
 You can also check out the [Getting Started](#getting-started) section.
 
 
 ## Reporting issues ##
 ---
-Use the [issue tracker][9]. Please check that the issue has not already
+Use the [issue tracker][10]. Please check that the issue has not already
 been submitted!
 
 
@@ -74,5 +75,6 @@ Mobile: +358400326010
 [5]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Setting-up-environment
 [6]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Basic-modification-of-environment
 [7]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Running-the-emulator
-[8]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/home
-[9]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/issues
+[8]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Examples
+[9]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/home
+[10]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/issues
