@@ -69,7 +69,8 @@ check_option_value() {
     index=$((index + 1))
 
     if [ ${index} -gt $(($#)) ] \
-    || [ $(expr "${!index}" : "^-.*$") -gt 0 ] \
+    || [ $(expr "${!index}" : "^-.$") -gt 0 ] \
+    || [ $(expr "${!index}" : "^--..+$") -gt 0 ] \
     || [ $(expr "${!index}" : "^$") -gt 0 ]; then
         return 1
     else

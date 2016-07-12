@@ -191,7 +191,7 @@ backup_ramdisk_props() {
                 continue
             fi
 
-            for key in ${!build_prop_changes[@]}; do
+            for key in ${!default_prop_changes[@]}; do
                 if [ "${key}" == "${key_capture}" ]; then
                     printf "${key_capture}=${value_capture}\n" >> ${BACKUP_DIR}/${backup_file}
                     break
