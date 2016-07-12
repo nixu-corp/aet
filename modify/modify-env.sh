@@ -16,7 +16,6 @@ OPTIONS
 -s, --silent            Silent mode, suppresses all output except result
 -h, --help              Display this help and exit
 
-<backup directory>      The directory where to store the backups
 <configuration file>    Configuration file for modify-env script"
 HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
@@ -30,6 +29,7 @@ BANNER="
 "
 
 BACKUP_DIR=""
+BACKUP_POSTFIX=""
 CONF_FILE=""
 SYS_IMG_FILE=""
 ROOT_PASSWORD=""
@@ -40,6 +40,7 @@ SYS_IMG_REGEX="^system_img_dir_file[[:blank:]]*=[[:blank:]]*\(.*\)"
 RAM_MOD_REGEX="^ramdisk_modification_file[[:blank:]]*=[[:blank:]]*\(.*\)"
 SYS_MOD_REGEX="^system_modification_file[[:blank:]]*=[[:blank:]]*\(.*\)"
 BACKUP_DIR_REGEX="^backup_directory[[:blank:]]*=[[:blank:]]*\(.*\)"
+BACKUP_POSTFIX_REGEX="^backup_filename_postfix[[:blank:]]*=[[:blank:]]*\(.*\)"
 
 TMP_RAMDISK_DIR="ramdisk"
 TMP_MOUNT_DIR="mount"
@@ -128,6 +129,7 @@ read_conf() {
         local ramdisk_mod_file_capture=$(expr "${line}" : "${RAM_MOD_REGEX}")
         local system_mod_file_capture=$(expr "${line}" : "${SYS_MOD_REGEX}")
         local backup_dir_capture=$(expr "${line}" : "${BACKUP_DIR_REGEX}")
+        local backup_postfix_capture=$(expr "${line}" : "${BACKUP_POSTFIX_REGEX}")
         if [ ! -z "${sys_img_dir_file_capture}" ]; then
             SYS_IMG_FILE="${sys_img_dir_file_capture}"
             SYS_IMG_FILE="${SYS_IMG_FILE%/}"
@@ -137,6 +139,8 @@ read_conf() {
             SYSTEM_MODIFICATION_FILE="${system_mod_file_capture}"
         elif [ ! -z "${backup_dir_capture}" ]; then
             BACKUP_DIR="${backup_dir_capture}"
+        elif [ ! -z "${backup_postfix_capture}" ] || [ -z "${backup_postfix_capture}" ]; then
+            BACKUP_POSTFIX="${backup_postfix_capture}"
         else
             std_err "Unknown configuration found: ${line}"
             exit 1
@@ -228,7 +232,10 @@ run() {
 
     local modifier=""
     if [ ${DO_BACKUP} -eq 1 ]; then
-        modifier="--backup ${BACKUP_DIR}"
+        if [ -z "${BACKUP_POSTFIX}" ]; then
+            BACKUP_POSTFIX="_$(date +%F-%H-%M-%S).bak"
+        fi
+        modifier="--backup ${BACKUP_DIR} ${BACKUP_POSTFIX}"
     fi
 
     for i in "${SYS_IMG_DIRS[@]}"; do

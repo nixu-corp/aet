@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-ramdisk-img.sh [-b backup directory] <system image dir> <ramdisk directory> <modification file> [ramdisk image file] [default prop file] [mkbootfs file]"
+USAGE="Usage: ./modify-ramdisk-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <ramdisk directory> <modification file> [ramdisk image file] [default prop file] [mkbootfs file]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Backups before making any modifications, use
@@ -15,6 +15,8 @@ OPTIONS
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
+<backup directory>          The directory where to store the backups
+<backup file postfix>       A postfix after the backup filename
 <system image directory>    Directory of the installed system image
 <ramdisk directory>         Directory where the ramdisk file is being unzipped to
 <modification file>         File with the modifications in key-value pairs
@@ -28,6 +30,7 @@ MODIFICATION_FILE=""
 SYS_IMG_DIR=""
 TMP_RAMDISK_DIR=""
 BACKUP_DIR=""
+BACKUP_POSTFIX=""
 
 RAMDISK_FILE=""
 DEFAULT_PROP_FILE=""
@@ -48,15 +51,24 @@ parse_arguments() {
         elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
-            i=$((i + 1))
-            check_option_value ${i} $@
-            if [ $? -eq 1 ]; then
-                std_err "No backup directory given for '-b'!\n"
-                std_err "${USAGE}"
-                std_err "See -h for more information"
-            else
-                BACKUP_DIR="${!i}"
-            fi
+            for ((j = 0; j < 2; j++)); do
+                i=$((i + 1))
+                check_option_value ${i} $@
+                if [ $? -eq 1 ]; then
+                    if [ ${j} == 0 ]; then
+                        std_err "No backup directory given for '-b'!\n"
+                    else
+                        std_err "No backup postfix given for '-b'\n"
+                    fi
+                    std_err "${USAGE}"
+                    std_err "See -h for more information"
+                elif [ -z "${BACKUP_DIR}" ]; then
+                    BACKUP_DIR="${!i}"
+                    BACKUP_DIR="${BACKUP_DIR%/}"
+                else
+                    BACKUP_POSTFIX="${!i}"
+                fi
+            done
         elif [ -z "${SYS_IMG_DIR}" ]; then
             SYS_IMG_DIR="${!i}"
             SYS_IMG_DIR="${SYS_IMG_DIR%/}"
@@ -181,9 +193,11 @@ backup_ramdisk_props() {
         ret=1
     fi
 
-    local backup_file="${DEFAULT_PROP_FILE}-$(date +%F-%H-%M-%S).bak"
+    local backup_file="${DEFAULT_PROP_FILE}${BACKUP_POSTFIX}"
 
     if [ ${ret} -eq 0 ]; then
+        [ -f ${BACKUP_DIR}/${backup_file} ] && rm ${BACKUP_DIR}/${backup_file} &>/dev/null
+        
         while read line; do
             local key_capture=$(expr "${line}" : "${KEY_REGEX}")
             local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
