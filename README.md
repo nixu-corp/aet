@@ -25,25 +25,27 @@ unmodified environment.
 * Install Java; [Oracle's Java][2] or [OpenJDK][3]
 * Install [XMLStarlet][4]
 
+Are you not on Linux? Or are you having problems with the scripts? Check out the
+guide for [manual setup][5]
 
 ## Getting Started ##
 ---
-* [Setting up environment][5]
-* [Basic modification][6]
-* [Running emulator][7]
-* [Examples][8]
+* [Setting up environment][6]
+* [Basic modification][7]
+* [Running emulator][8]
+* [Examples][9]
 
 
 ## Documentation ##
 ---
-The [Wiki][9] contains all the information needed.
+The [Wiki][10] contains all the information needed.
 
 You can also check out the [Getting Started](#getting-started) section.
 
 
 ## Reporting issues ##
 ---
-Use the [issue tracker][10]. Please check that the issue has not already
+Use the [issue tracker][11]. Please check that the issue has not already
 been submitted!
 
 
@@ -72,9 +74,10 @@ Mobile: +358400326010
 [2]: http://java.com/en/download/
 [3]: http://openjdk.java.net/install/
 [4]: http://xmlstar.sourceforge.net/download.php
-[5]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Setting-up-environment
-[6]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Basic-modification-of-environment
-[7]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Running-the-emulator
-[8]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Examples
-[9]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/home
-[10]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/issues
+[5]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Manual-setup
+[6]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Setting-up-environment
+[7]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Basic-modification-of-environment
+[8]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Running-the-emulator
+[9]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Examples
+[10]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/home
+[11]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/issues
