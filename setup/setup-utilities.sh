@@ -8,12 +8,13 @@ download_file() {
     local url="${1}"
     local dir="${2}"
     local file="${3}"
-    local progress_modifier="--show-progress"
-    if [ "${SILENT_MODE}" == "1" ]; then
-        progress_modifier=""
+    local output_modifier="-q --show-progress"
+    local wget_help=$(wget --help | grep "\-\-show\-progress")
+    if [ "${SILENT_MODE}" == "1" ] || [ -z "${wget_help}" ]; then
+        output_modifier=""
     fi
     println "Downloading: ${dir}/\033[1;35m${file}\033[0m"
-    wget -q ${progress_modifier} -O "${dir}/${file}" "${url}"
+    wget ${output_modifier} -O "${dir}/${file}" "${url}"
 } # download_android_sdk()
 
 check_downloaded_file() {
