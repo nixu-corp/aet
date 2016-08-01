@@ -1,5 +1,7 @@
 #!/bin/bash
 
+ROOT_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
+ROOT_DIR="${EXEC_DIR%/}"
 APK_DIR="/home/daniel/Documents/git/android-emulation-environment-setup/apks"
 SDK_DIR="/home/daniel/Downloads/sdk/android-sdk-linux"
 AVD="TestName"
@@ -25,19 +27,17 @@ check_files() {
 
 start_avd() {
 	printf "Starting AVD: ${AVD}\n"
-	${SDK_DIR}/tools/emulator -avd ${AVD} -wipe-date -partition-size 2047 & &>/dev/null
-    exit
+	${SDK_DIR}/tools/emulator -avd ${AVD} -no-boot-anim -wipe-data -partition-size 2047 & &>/dev/null
 } # start_avd()
 
 wait_for_device() {
 	printf "Waiting...\n"
-	output="stopped"
+	output=""
 	while [ "${output}" != "stopped" ]; do
-		output="$(${ADB} wait-for-device shell getprop init.svc.bootanim)"
+		output="$(${ADB} wait-for-device shell getprop init.svc.bootanim | tr -cd '[[:alpha:]]')"
 		sleep 2
 	done
 	printf "\n"
-	${ADB}
 } # wait_for_device()
 
 install_root() {
@@ -47,8 +47,8 @@ install_root() {
 	${ADB} shell mount -o rw,remount /system
 
 	printf "Transfering \'su\' binary\n"
-	${ADB} push %{SDK_DIR}/bin/su /system/xbin/su
-	${ADB} push %{SDK_DIR}/bin/su /system/xbin/surd
+	${ADB} push ${ROOT_DIR}/bin/root/su /system/xbin/su
+	${ADB} push ${ROOT_DIR}/bin/root/su /system/xbin/surd
 
 	printf "Changing permission\n"
 	${ADB} shell chmod 06755 /system
@@ -64,7 +64,7 @@ install_substrate() {
 	printf "Uninstalling old Substrate\n"
 	${ADB} shell pm uninstall com.saurik.substrate
 	printf "Installing new Substrate\n"
-	${ADB} install ${SDK_DIR}/apks/Substrate.apk
+	${ADB} install ${ROOT_DIR}/apks/Substrate.apk
 	printf "Linking Substrate files\n"
 	${ADB} shell /data/data/com.saurik.substrate/lib/libSubstrateRun.so do_link
 	printf "Opening Substrate app\n"
@@ -84,7 +84,7 @@ install_substrate_extensions() {
 		printf "Uninstalling old apk: ${app}\n"
 		${ADB} shell pm uninstall ${package}
 		printf "Installing new apk: ${app}\n"
-		${ADB} install ${SDK_DIR}/apks/${app}
+		${ADB} install ${ROOT_DIR}/apks/${app}
 	done
 
 	printf "\n"
@@ -100,7 +100,7 @@ install_apks() {
 		printf "Uninstalling old apk: ${app}\n"
 		${ADB} shell pm uninstall ${package}
 		printf "Installing new apk: ${app}\n"
-		${ADB} install ${SDK_DIR}/apks/${app}
+		${ADB} install ${ROOT_DIR}/apks/${app}
 	done
 
 	printf "\n"
