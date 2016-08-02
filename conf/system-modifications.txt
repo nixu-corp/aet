@@ -1,8 +1,10 @@
 ro.build.host=host
 ro.build.fingerprint=fingerprint
 ro.build.product=product
+ro.build.type=user
 ro.product.name=name
 ro.product.manufacturer=known
 ro.product.brand=Android
 ro.product.device=device
 ro.product.model=model
+ro.product.board=board
