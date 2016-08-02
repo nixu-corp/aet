@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-ramdisk-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <ramdisk directory> <modification file> [ramdisk image file] [default prop file] [mkbootfs file]"
+USAGE="Usage: ./modify-ramdisk-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <ramdisk directory> <modification file> [ramdisk image file] [default prop file] [mkbootfs file] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Backups before making any modifications, use

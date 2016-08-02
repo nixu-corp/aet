@@ -5,7 +5,8 @@ set -u
 EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
-source ${ROOT_DIR}/utilities.sh
+ROOT_DIR="${ROOT_DIR%/}"
+source ${ROOT_DIR}/emulator-utilities.sh
 
 USAGE="./run-env.h <android sdk directory> <avd name> [-s|--silent]"
 HELP_TEXT="
@@ -22,7 +23,7 @@ AVD_NAME=""
 SILENT_MODE=0
 
 parse_arguments() {
-    if [ $# -lt 2 ]; then
+    if [ $# -eq 0 ]; then
         std_err "${USAGE}"
         std_err "See -h for more information"
         exit 1
@@ -51,34 +52,49 @@ parse_arguments() {
         exit 1
     fi
 
+    if [ -z "${ASDK_DIR}" ]; then
+        std_err "${USAGE}"
+        std_err "See -h for more information"
+        std_err "Android SDK has not been specified!"
+        exit 1
+    fi
+
+    if [ -z "${AVD_NAME}" ]; then
+        std_err "${USAGE}"
+        std_err "See -h for more information"
+        std_err "AVD name has not been specified!"
+        exit 1
+    fi
+} # parse_arguments()
+
+check_files() {
     if [ ! -d ${ASDK_DIR} ]; then
         std_err "Android SDK directory does not exist!"
         exit 1
     fi
 
-    if [ ! -f ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android ] \
-    || [ ! -f ${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb ]; then
-        std_err "Invalid Android SDK directory!"
+    if [ ! -f ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android ]; then
+        std_err "${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android is missing!"
         exit 1
     fi
-} # parse_arguments()
 
-check_avd() {
-    local avd_name_grep=$(${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android list avd | grep "Name: ${AVD_NAME}$")
-
-    if [ -z "${avd_name_grep}" ]; then
-        std_err "There is no AVD with that name!"
+    if [ ! -f ${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb ]; then
+        std_err "${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb is missing!"
         exit 1
     fi
-} # check_avd()
+} # check_files()
 
-run_emulator() {
-#    ${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb start-server
-#    ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/emulator -avd "${AVD_NAME}" -shell -verbose
-    printf "Android SDK: ${ASDK_DIR}\n"
-    printf "AVD Name: ${AVD_NAME}\n"
-} # run_emulator()
 
 parse_arguments $@
-check_avd
-run_emulator
+check_files
+check_avd ${AVD_NAME}
+start_avd ${AVD_NAME}
+wait_for_device
+
+if [ $? -eq 0 ]; then
+    println "AVD is running"
+else
+    ${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb emu kill &>/dev/null
+    std_err "Failed to start emulator!"
+    exit 1
+fi

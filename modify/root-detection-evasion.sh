@@ -4,9 +4,9 @@ set -u
 
 ROOT_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
-source ${ROOT_DIR}/utilities.sh
+source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="Usage: ./root-detection-evasion.sh <android sdk directory> <avd name>"
+USAGE="Usage: ./root-detection-evasion.sh <android sdk directory> <avd name> [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -s, --silent                Silent mode, suppresses all output except result
@@ -15,9 +15,11 @@ OPTIONS
 <android sdk directory>     Android SDK installation directory
 <avd name>                  The name of the AVD to launch"
 
-SDK_DIR=""
+ASDK_DIR=""
 AVD=""
 ADB=""
+SILENT_MODE=0
+
 declare -a EXT_APKS=("DetectionEvader.apk")
 declare -a EXT_PKGS=("com.nixu.substraterootdetectionevasion")
 declare -a APKS=("RootDetector.apk" "RootChecker.apk" "NordeaCodes.apk" "hidesubinary.apk")
@@ -30,16 +32,14 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
-        elif [ -z "${SDK_DIR}" ]; then
-            SDK_DIR="${!i}"
+        elif [ -z "${ASDK_DIR}" ]; then
+            ASDK_DIR="${!i}"
         elif [ -z "${AVD}" ]; then
             AVD="${!i}"
         else
             std_err "Unknown argument: ${!i}"
             std_err "${USAGE}"
-            std_err "See -h for more info"
-            println "${SDK_DIR}"
-            println "${AVD}"
+            std_err "See -h for more information"
             exit 1
         fi
     done
@@ -49,42 +49,19 @@ parse_arguments() {
         exit
     fi
 
-    if [ -z "${SDK_DIR}" ] \
+    if [ -z "${ASDK_DIR}" ] \
     || [ -z "${AVD}" ]; then
         std_err "${USAGE}"
-        std_err "See -h for more info"
+        std_err "See -h for more information"
         exit 1
     fi
-
-    SDK_DIR=${SDK_DIR%/}
+    
+    ASDK_DIR=${ASDK_DIR%/}
 } # parse_arguments()
 
-check_files() {
-    if [ ! -d "${SDK_DIR}" ]; then
-        std_err "Android SDK directory not found!"
-        exit 1
-    fi
-
-    ADB="${SDK_DIR}/$(ls ${SDK_DIR})/platform-tools/adb"
-    println "Files are ok"
-} # parse_argumetns()
-
-start_avd() {
-    println "Starting AVD: ${AVD}"
-    ${SDK_DIR}/$(ls ${SDK_DIR})/tools/emulator -avd ${AVD} -no-boot-anim -wipe-data -partition-size 2047 &>/dev/null &
-} # start_avd()
-
-wait_for_device() {
-    write "Waiting..."
-    output=""
-    while [ "${output}" != "stopped" ]; do
-        # getprop appends a \r at the end of the string and that is why 'tr' is used here
-        output="$(${ADB} wait-for-device shell getprop init.svc.bootanim | tr -cd '[[:alpha:]]')"
-        sleep 2
-        write "."
-    done
-    println "\n"
-} # wait_for_device()
+setup() {
+    ADB="${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb"
+} # setup()
 
 install_root() {
     println "ROOTING"
@@ -124,13 +101,17 @@ install_substrate_extensions() {
 
     local app=""
     local package=""
-    for i in "${#EXT_APKS[@]}"; do
+    for ((i=0; i < ${#EXT_APKS[@]}; i++)); do
         app="${EXT_APKS[${i}]}"
         package="${EXT_PKGS[${i}]}"
         println "Uninstalling old apk: ${app}"
         ${ADB} shell pm uninstall ${package}
-        println "Installing new apk: ${app}"
-        ${ADB} install ${ROOT_DIR}/apks/${app}
+        if [ -f "${ROOT_DIR}/apks/${app}" ]; then
+            println "Installing new apk: ${app}"
+            ${ADB} install ${ROOT_DIR}/apks/${app}
+        else
+            std_err "Could not find apk: ${app}"
+        fi
     done
 
     println ""
@@ -140,27 +121,31 @@ install_apks() {
     println "ADDITIONAL APK\'S"
     local app=""
     local package=""
-    for i in "${#APKS[@]}"; do
+    for ((i = 0; i < ${#APKS[@]}; i++)); do
         app="${APKS[${i}]}"
         package="${PKGS[${i}]}"
         println "Uninstalling old apk: ${app}"
         ${ADB} shell pm uninstall ${package}
-        println "Installing new apk: ${app}"
-        ${ADB} install ${ROOT_DIR}/apks/${app}
+        if [ -f "${ROOT_DIR}/apks/${app}" ]; then
+            println "Installing new apk: ${app}"
+            ${ADB} install ${ROOT_DIR}/apks/${app}
+        else
+            std_err "Could not find apk: ${app}"
+        fi
     done
 
     println ""
 } # install_apks()
 
-reboot_avd() {
-    println "Rebooting Android Virtual Device"
-    ${ADB} shell su -c setprop ctl.restart zygote
-} # reboot()
 
 parse_arguments $@
-check_files
-start_avd
-wait_for_device
+setup
+
+modifier=""
+[ ${SILENT_MODE} -eq 1 ] && modifier="-s"
+${ROOT_DIR}/bin/run-emulator.sh ${ASDK_DIR} ${AVD} ${modifier}
+[ $? -ne 0 ] && exit 1
+
 install_root
 install_substrate
 install_substrate_extensions

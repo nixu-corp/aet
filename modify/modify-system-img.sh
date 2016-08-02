@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-system-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <mount directory> <modification file> [system image file] [build prop file]"
+USAGE="Usage: ./modify-system-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <mount directory> <modification file> [system image file] [build prop file] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Backups before making any modifications, use
