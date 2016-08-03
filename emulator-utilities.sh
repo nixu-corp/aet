@@ -28,13 +28,14 @@ wait_for_device() {
     local output=""
     local timeout_sec=60
     local ret=1
+    printf "1" > /dev/shm/emulator-tmp.txt
 
     while true; do
         # getprop appends a \r at the end of the string and that is why 'tr' is used here
         output="$(${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb wait-for-device shell getprop init.svc.bootanim | tr -cd '[[:alpha:]]')"
         sleep 2
         if [ "${output}" == "stopped" ]; then
-            ret=0
+            printf "0" > /dev/shm/emulator-tmp.txt
             break
         fi
     done &
@@ -43,12 +44,17 @@ wait_for_device() {
         write "."
         sleep 1
         timeout_sec=$((timeout_sec - 1))
-        if [ ${timeout_sec} -le 0 ] || [ ${ret} -eq 0 ]; then
+        ret=$(</dev/shm/emulator-tmp.txt)
+        if [ ${timeout_sec} -le 0 ]; then
             kill $!
             trap 'kill $1' SIGTERM
             break
         fi
+
+        [ ${ret} -eq 0 ] && break
     done
+
+    rm /dev/shm/emulator_tmp.txt
 
     println ""
     return ${ret}

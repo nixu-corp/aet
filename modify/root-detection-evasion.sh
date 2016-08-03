@@ -155,6 +155,7 @@ modifier=""
 ${ROOT_DIR}/bin/run-emulator.sh ${ASDK_DIR} ${AVD} ${modifier}
 [ $? -ne 0 ] && exit 1
 
+printfln ""
 install_root
 install_substrate
 install_substrate_extensions
