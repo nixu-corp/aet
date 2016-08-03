@@ -49,6 +49,15 @@ Use the [issue tracker][11]. Please check that the issue has not already
 been submitted!
 
 
+## Special thanks ##
+---
+Kimmo Linnavuo, for assisting in researching emulation detection
+
+Timo Järventausta, for his useful comments about user-friendliness
+
+Aaro Lehikoinen, for helping with testing and code review
+
+
 ## Contact information ##
 ---
 Original developer
