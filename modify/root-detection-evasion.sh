@@ -6,9 +6,10 @@ ROOT_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="Usage: ./root-detection-evasion.sh <android sdk directory> <avd name> [-s|--silent]"
+USAGE="Usage: ./root-detection-evasion.sh <android sdk directory> <avd name> [-c|--clear] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
+-c, --clear                 Wipe user data before booting emulator
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
@@ -26,12 +27,20 @@ declare -a APKS=("RootDetector.apk" "RootChecker.apk" "NordeaCodes.apk" "hidesub
 declare -a PKGS=("com.nixu.rootdetection" "com.joeykrim.rootcheck" "com.nordea.mobiletoken" "com.nixu.hideroot")
 
 parse_arguments() {
+    if [ $# -eq 0 ]; then
+        std_err "${USAGE}"
+        std_err "See -h for more information"
+        exit 1
+    fi
+
     local show_help=0
     for ((i = 1; i <= $#; i++)); do
-        if [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
-            SILENT_MODE=1
-        elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
+        if [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
+        elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
+            SILENT_MODE=1
+        elif [ "${!i}" == "-c" ] || [ "${!i}" == "--clear" ]; then
+            CLEAR_DATA="-wipe-data"
         elif [ -z "${ASDK_DIR}" ]; then
             ASDK_DIR="${!i}"
         elif [ -z "${AVD}" ]; then

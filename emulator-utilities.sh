@@ -13,7 +13,9 @@ check_avd() {
 
 start_avd() {
     println "Starting AVD: ${1}"
-    ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/emulator -avd "${1}" -no-boot-anim -partition-size 2047 &>/dev/null &
+    local opts=""
+    [ $# -ge 2 ] && opts="${2}"
+    ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/emulator -avd "${1}" "${opts}" -partition-size 2047 &>/dev/null &
 } # start_avd()
 
 reboot_avd() {
@@ -24,7 +26,7 @@ reboot_avd() {
 wait_for_device() {
     write "Waiting"
     local output=""
-    local timeout_sec=30
+    local timeout_sec=60
     local ret=1
 
     while true; do

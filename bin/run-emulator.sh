@@ -8,9 +8,10 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="./run-env.h <android sdk directory> <avd name> [-s|--silent]"
+USAGE="./run-env.h <android sdk directory> <avd name> [-c|--clear] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
+-c, --clear                 Wipe user data before booting emulator
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
@@ -19,6 +20,7 @@ OPTIONS
 
 ASDK_DIR=""
 AVD_NAME=""
+CLEAR_DATA=""
 
 SILENT_MODE=0
 
@@ -35,6 +37,8 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-c" ] || [ "${!i}" == "--clear" ]; then
+            CLEAR_DATA="-wipe-data"
         elif [ -z "${ASDK_DIR}" ]; then
             ASDK_DIR="${1%/}"
         elif [ -z "${AVD_NAME}" ]; then
@@ -88,7 +92,7 @@ check_files() {
 parse_arguments $@
 check_files
 check_avd ${AVD_NAME}
-start_avd ${AVD_NAME}
+start_avd ${AVD_NAME} ${CLEAR_DATA}
 wait_for_device
 
 if [ $? -eq 0 ]; then
