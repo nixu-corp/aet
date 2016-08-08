@@ -1,4 +1,4 @@
-# Emulation detection resistant emulation environment setup #
+# Android Emulation Toolkit (AET) #
 
 ## Table of contents ##
 ---
