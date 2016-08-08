@@ -79,10 +79,10 @@ Email:  daniel.riissanen[ät]nixu.com
 [2]: http://java.com/en/download/
 [3]: http://openjdk.java.net/install/
 [4]: http://xmlstar.sourceforge.net/download.php
-[5]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Manual-setup
-[6]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Setting-up-environment
-[7]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Basic-modification-of-environment
-[8]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Running-the-emulator
-[9]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/Examples
-[10]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/wikis/home
-[11]: https://git.nixu.fi/daniel.riissanen/android-emulation-environment-setup/issues
+[5]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Manual-setup
+[6]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Setting-up-environment
+[7]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Basic-modification-of-environment
+[8]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Running-the-emulator
+[9]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Examples
+[10]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/home
+[11]: https://x/daniel.riissanen/android-emulation-environment-setup/issues
