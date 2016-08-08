@@ -64,9 +64,7 @@ Original developer
 
 Name:   Daniel Riissanen
 
-Email:  daniel.riissanen@nixu.com
-
-Mobile: +358400326010
+Email:  daniel.riissanen[ät]nixu.com
 
 --
 
@@ -74,9 +72,7 @@ Current developer:
 
 Name:   Daniel Riissanen
 
-Email:  daniel.riissanen@nixu.com
-
-Mobile: +358400326010
+Email:  daniel.riissanen[ät]nixu.com
 
 <!--- Links -->
 [1]: https://en.wikipedia.org/wiki/Bash_%28Unix_shell%29
