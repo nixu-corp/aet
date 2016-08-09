@@ -26,9 +26,9 @@ parse_arguments() {
         elif [ "${arg}" == "-s" ] || [ "${arg}" == "--silent" ]; then
             SILENT_MODE=1
         elif [ -z "${DOWNLOAD_DIR}" ]; then
-            DOWNLOAD_DIR="${arg}"
+            DOWNLOAD_DIR="${arg/\~/${HOME}}"
         elif [ -z "${ASTUDIO_DIR}" ]; then
-            ASTUDIO_DIR="${arg}"
+            ASTUDIO_DIR="${arg/\~/${HOME}}"
         elif [ -z "${STUDIO_FILE}" ]; then
             STUDIO_FILE="${arg}"
         else

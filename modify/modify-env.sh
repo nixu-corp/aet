@@ -61,22 +61,6 @@ declare -a SYS_IMG_DIRS=()
 declare -A default_prop_changes
 declare -A build_prop_changes
 
-#######################
-# General functions
-#######################
-check_option_value() {
-    local index="${1}"
-    index=$((index + 1))
-
-    if [ ${index} -gt $(($#)) ] \
-    || [ $(expr "${!index}" : "^-.*$") -gt 0 ] \
-    || [ $(expr "${!index}" : "^$") -gt 0 ]; then
-        return 1
-    else
-        return 0
-    fi
-} # check_option_value()
-
 parse_arguments() {
     local show_help=0
     for ((i = 1; i <= $#; i++)); do

@@ -64,13 +64,12 @@ std_err() {
     println "${1}" 1>&2
 } # std_err()
 
-check_option_value() {
+argument_parameter_exists() {
     local index="${1}"
-    index=$((index + 1))
+    index=$((index + 2))
 
     if [ ${index} -gt $(($#)) ] \
-    || [ $(expr "${!index}" : "^-.$") -gt 0 ] \
-    || [ $(expr "${!index}" : "^--..+$") -gt 0 ] \
+    || [ $(expr "${!index}" : "^-.*$") -gt 0 ] \
     || [ $(expr "${!index}" : "^$") -gt 0 ]; then
         return 1
     else

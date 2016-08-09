@@ -39,27 +39,29 @@ parse_arguments() {
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
         elif [ "${!i}" == "-a" ]; then
-            i=$((i + 1))
-            for ((j=${i}; j <= $#; j++)); do
-                if [ $(expr "${!j}" : "--\?[[:alpha:]]") -ne 0 ]; then
-                    i=$((j - 1))
+            while true; do
+                argument_parameter_exists ${i} $@
+                if [ $? -eq 0 ]; then
+                    i=$((i + 1))
+                    A_PLATFORMS+=("${!i}")
+                else
                     break
                 fi
-                A_PLATFORMS+=("${!j}")
-            done  
+            done
         elif [ "${!i}" == "-g" ]; then
-            i=$((i + 1))
-            for ((j = ${i}; j <= $#; j++)); do
-                if [ $(expr "${!j}" : "--\?[[:alpha:]]") -ne 0 ]; then
-                    i=$((j - 1))
+            while true; do
+                argument_parameter_exists ${i} $@
+                if [ $? -eq 0 ]; then
+                    i=$((i + 1))
+                    G_PLATFORMS+=("${!i}")
+                else
                     break
                 fi
-                G_PLATFORMS+=("${!j}")
             done
         elif [ -z "${DOWNLOAD_DIR}" ]; then
-            DOWNLOAD_DIR="${!i}"
+            DOWNLOAD_DIR="${!i/\~/${HOME}}"
         elif [ -z "${ASDK_DIR}" ]; then
-            ASDK_DIR="${!i}"
+            ASDK_DIR="${!i/\~/${HOME}}"
         else
             std_err "Unknown argument: ${!i}"
             std_err "${USAGE}"

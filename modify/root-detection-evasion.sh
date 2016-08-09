@@ -32,8 +32,8 @@ EXTENSION_PACKAGES_REGEX="^extension_packages[[:blank:]]*=[[:blank:]]*\(.*\)"
 
 declare -a APKS=()
 declare -a PKGS=()
-declare -a EXTENSION_APKS=("")
-declare -a EXTENSION_PKGS=("")
+declare -a EXTENSION_APKS=()
+declare -a EXTENSION_PKGS=()
 
 parse_arguments() {
     if [ $# -eq 0 ]; then

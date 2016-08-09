@@ -8,16 +8,23 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-e configuration file] [-m configuration file]"
+USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-e <configuration file>] [-m <configuration file>]"
 HELP_TEXT="
 OPTIONS
--b, --backup            Enable backup for modification scripts
--e, --environment       Installs the environment and the necessary tools
--m, --modify            Modifies the environment to evade emulation detection
--s, --silent            Silent mode, suppresses all output except result
--h, --help              Display this help and exit
+-b, --backup                Enable backup for modification scripts
+-e, --environment           Installs the environment and the necessary tools
+    <configuration file>    OPTIONAL: Configuration file for environment
+                            setup
+                                default: conf/setup-tools.conf
 
-<configuration file>    The configuration file belonging to each script"
+-m, --modify                Modifies the environment to evade emulation detection
+                            OPTIONAL: Configuration file for emulation detection
+                            evasion
+                                default: conf/modify-env.conf
+
+-s, --silent                Silent mode, suppresses all output except result
+-h, --help                  Display this help and exit"
+
 HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
 ROOT=0
@@ -26,8 +33,8 @@ MODIFY_ENV=0
 DO_BACKUP=0
 
 ROOT_PASSWORD=""
-TOOLS_CONF=""
-MODIFY_CONF=""
+TOOLS_CONF="conf/setup-tools.conf"
+MODIFY_CONF="conf/modify-env.conf"
 
 check_dependencies() {
     local ret=0
@@ -55,27 +62,17 @@ parse_arguments() {
             DO_BACKUP=1
         elif [ "${!i}" == "-e" ] || [ "${!i}" == "--environment" ]; then
             SETUP_TOOLS=1
-            i=$((i + 1))
-            check_option_value ${i} $@
-            if [ $? -eq 1 ]; then
-                std_err "No configuration file given for '-e'!\n"
-                std_err "${USAGE}"
-                std_err "See -h for more information"
-                exit 1
-            else
+            argument_parameter_exists ${i} $@
+            if [ $? -eq 0 ]; then
                 TOOLS_CONF="${!i}"
+                i=$((i + 1))
             fi
         elif [ "${!i}" == "-m" ] || [ "${!i}" == "--modify" ]; then
             MODIFY_ENV=1
-            i=$((i + 1))
-            check_option_value ${i} $@
-            if [ $? -eq 1 ]; then
-                std_err "No configuration file given for '-m'!\n"
-                std_err "${USAGE}"
-                std_err "See -h for more information"
-                exit 1
-            else
+            argument_parameter_exists ${i} $@
+            if [ $? -eq 0 ]; then
                 MODIFY_CONF="${!i}"
+                i=$((i + 1))
             fi
         else
             std_err "Unknown argument: ${!i}\n"

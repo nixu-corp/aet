@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="./run-env.h <android sdk directory> <avd name> [-c|--clear] [-s|--silent]"
+USAGE="./run-emulator.sh <android sdk directory> <avd name> [-c|--clear] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -c, --clear                 Wipe user data before booting emulator
@@ -40,9 +40,10 @@ parse_arguments() {
         elif [ "${!i}" == "-c" ] || [ "${!i}" == "--clear" ]; then
             CLEAR_DATA="-wipe-data"
         elif [ -z "${ASDK_DIR}" ]; then
-            ASDK_DIR="${1%/}"
+            ASDK_DIR="${!i/~/${HOME}}"
+            ASDK_DIR="${ASDK_DIR%/}"
         elif [ -z "${AVD_NAME}" ]; then
-            AVD_NAME="${2}"
+            AVD_NAME="${!i}"
         else
             std_err "Unknown argument: ${!i}"
             std_err "${USAGE}"

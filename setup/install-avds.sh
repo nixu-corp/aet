@@ -35,7 +35,7 @@ parse_arguments() {
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
         elif [ -z "${ANDROID_SDK_DIR}" ]; then
-            ANDROID_SDK_DIR="${!i}"
+            ANDROID_SDK_DIR="${!i/\~/${HOME}}"
         else
             AVD_CONF_FILES+=("${ROOT_DIR}/conf/${!i}")
         fi
