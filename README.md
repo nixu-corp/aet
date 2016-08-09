@@ -31,7 +31,6 @@ guide for [manual setup][5]
 ## Getting Started ##
 ---
 * [Setting up environment][6]
-* [Basic modification][7]
 * [Running emulator][8]
 * [Examples][9]
 
@@ -79,10 +78,9 @@ Email:  daniel.riissanen[ät]nixu.com
 [2]: http://java.com/en/download/
 [3]: http://openjdk.java.net/install/
 [4]: http://xmlstar.sourceforge.net/download.php
-[5]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Manual-setup
-[6]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Setting-up-environment
-[7]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Basic-modification-of-environment
-[8]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Running-the-emulator
-[9]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/Examples
-[10]: https://x/daniel.riissanen/android-emulation-environment-setup/wikis/home
-[11]: https://x/daniel.riissanen/android-emulation-environment-setup/issues
+[5]: https://github.com/nixu-corp/aet/wiki/Manual-setup
+[6]: https://github.com/nixu-corp/aet/wiki/Setting-up-environment
+[8]: https://github.com/nixu-corp/aet/wiki/Running-the-emulator
+[9]: https://github.com/nixu-corp/aet/wiki/Examples
+[10]: https://github.com/nixu-corp/aet/wiki
+[11]: https://github.com/nixu-corp/aet/issues
