@@ -30,9 +30,28 @@ guide for [manual setup][5]
 
 ## Getting Started ##
 ---
-* [Setting up environment][6]
-* [Running emulator][8]
-* [Examples][9]
+#### Clone the project: ####
+```
+git clone git@github.com:nixu-corp/aet.git
+cd aet/
+```
+
+#### Set executable bit for all scripts: ####
+```
+sudo chmod -R +x *.sh
+```
+If you do not have sudo permission, just add `bash` before each command running a shell script.
+
+#### Run setup script (See [Setting up environment][6]): ####
+```
+bin/setup-env.sh --environment conf/setup-tools.conf
+```
+
+#### After that you can fire up the emulator (See [Running emulator][8]): ####
+```
+bin/run-env.sh /opt/android-sdk/ [AVD name]
+```
+**AVD name**: The name of one of the installed AVDs. Please check the avd configuration files for the name.
 
 
 ## Documentation ##
