@@ -111,14 +111,15 @@ install_sdk_sys_imgs() {
         for platform in ${A_PLATFORMS[@]}; do
             local api="$(printf "${platform}" | cut -d ":" -f 1)"
             local plat="$(printf "${platform}" | cut -d ":" -f 2)"
-            parse_sys_img_xml ${api} ${plat}
 
+            parse_sys_img_xml ${api} ${plat}
+            [ $? -eq 0 ] || continue
             download_file "${ANDROID_SDK_SYS_IMG_BASE_URL}/android/${SYS_IMG_FILE}" "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}"
-            if [ $? -ne 0 ]; then continue; fi
+            [ $? -eq 0 ] || continue
             check_downloaded_file "${DOWNLOAD_DIR}/${SYS_IMG_FILE}"
-            if [ $? -ne 0 ]; then continue; fi
+            [ $? -eq 0 ] || continue
             unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/android-${api}/${tag_id}/"
-            if [ $? -ne 0 ]; then continue; fi
+            [ $? -eq 0 ] || continue
         done
         rm "${DOWNLOAD_DIR}/${XML_FILE}" &>/dev/null
     fi
@@ -130,14 +131,15 @@ install_sdk_sys_imgs() {
         for platform in ${G_PLATFORMS[@]}; do
             local api="$(printf "${platform}" | cut -d ":" -f 1)"
             local plat="$(printf "${platform}" | cut -d ":" -f 2)"
-            parse_sys_img_xml ${api} ${plat}
 
+            parse_sys_img_xml ${api} ${plat}
+            [ $? -eq 0 ] || continue
             download_file "${ANDROID_SDK_SYS_IMG_BASE_URL}/google_apis/${SYS_IMG_FILE}" "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}"
-            if [ $? -ne 0 ]; then continue; fi
+            [ $? -eq 0 ] || continue
             check_downloaded_file "${DOWNLOAD_DIR}/${SYS_IMG_FILE}"
-            if [ $? -ne 0 ]; then continue; fi
+            [ $? -eq 0 ] || continue
             unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/android-${api}/${tag_id}/"
-            if [ $? -ne 0 ]; then continue; fi
+            [ $? -eq 0 ] || continue
         done
         rm "${DOWNLOAD_DIR}/${XML_FILE}" &>/dev/null
     fi
@@ -172,6 +174,11 @@ parse_sys_img_xml() {
     fi
 
     local xmlstarlet_output=$(xmlstarlet sel -N x=http://schemas.android.com/sdk/android/sys-img/3 -T -t -m "//x:system-image[x:api-level='${api_level}' and x:abi='${platform}' ${platform_n}]" -v "concat(x:archives/x:archive/x:url, '|', x:tag-id )" -n ${DOWNLOAD_DIR}/${XML_FILE})
+
+    if [ -z "${xmlstarlet_output}" ]; then
+        std_err "No system image found! (API: ${api_level}, Architecture: ${platform})"
+        return 1
+    fi
 
     SYS_IMG_FILE="$(printf "${xmlstarlet_output}" | cut -d "|" -f 1)"
     tag_id="$(printf "${xmlstarlet_output}" | cut -d "|" -f 2)"

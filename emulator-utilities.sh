@@ -54,7 +54,7 @@ wait_for_device() {
         [ ${ret} -eq 0 ] && break
     done
 
-    rm /dev/shm/emulator_tmp.txt
+    rm /dev/shm/emulator-tmp.txt &>/dev/null
 
     println ""
     return ${ret}

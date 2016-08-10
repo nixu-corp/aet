@@ -33,6 +33,7 @@ ASDK_DIR=""
 DOWNLOAD_DIR=""
 STUDIO_FILE="android-studio-ide-143.2915827-linux.zip"
 SDK_FILE="android-sdk_r22.0.5-linux.tgz"
+TMP_A_APIS=("")
 A_APIS=()
 G_APIS=()
 A_PLATFORMS=()
@@ -81,6 +82,7 @@ parse_arguments() {
 
 read_conf() {
     while read line; do
+        local IFS=$'\t, '
 
         if [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
             continue
@@ -106,22 +108,22 @@ read_conf() {
         elif [ ! -z "${asdk_dir_capture}" ]; then
             ASDK_DIR="${asdk_dir_capture}"
         elif [ ! -z "${a_apis_capture}" ]; then
-            IFS=","
             read -r -a A_APIS <<< "android-${a_apis_capture}"
         elif [ ! -z "${g_apis_capture}" ]; then
-            IFS=","
+            read -r -a TMP_A_APIS <<< "android-${g_apis_capture}"
             read -r -a G_APIS <<< "addon-google_apis-google-${g_apis_capture}"
         elif [ ! -z "${a_platform_capture}" ]; then
-            IFS=","
             read -r -a A_PLATFORMS <<< "${a_platform_capture}"
         elif [ ! -z "${g_platform_capture}" ]; then
-            IFS=","
             read -r -a G_PLATFORMS <<< "${g_platform_capture}"
         elif [ ! -z "${avd_conf_capture}" ]; then
-            IFS=","
             read -r -a AVD_CONF_FILES <<< "${avd_conf_capture}"
         fi
     done < "${CONF_FILE}"
+
+    for i in "${TMP_A_APIS[@]}"; do
+        [ -z "${i}" ] || A_APIS+=("${i}")
+    done
 
     if [ -z "${DOWNLOAD_DIR}" ]; then
         println "Download directory has not been specified!"
