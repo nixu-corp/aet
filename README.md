@@ -44,14 +44,13 @@ If you do not have sudo permission, just add `bash` before each command running 
 
 #### Run setup script (See [Setting up environment][6]): ####
 ```
-bin/setup-env.sh --environment conf/setup-tools.conf
+bin/setup-env.sh -e
 ```
 
 #### After that you can fire up the emulator (See [Running emulator][8]): ####
 ```
-bin/run-env.sh /opt/android-sdk/ [AVD name]
+bin/run-env.sh ~/android-sdk/ android-17-default
 ```
-**AVD name**: The name of one of the installed AVDs. Please check the avd configuration files for the name.
 
 
 ## Documentation ##
