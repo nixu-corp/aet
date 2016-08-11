@@ -45,7 +45,7 @@ bin/setup-env.sh -e
 
 #### After that you can fire up the emulator (See [Running emulator][8]): ####
 ```
-bin/run-env.sh ~/android-sdk/ android-17-default
+bin/run-emulator.sh ~/android-sdk/ android-17-default
 ```
 
 
