@@ -12,10 +12,13 @@ check_avd() {
 } # check_avd()
 
 start_avd() {
+    if [ $# -lt 1 ]; then
+        std_err "No AVD name given!"
+        exit 1
+    fi
+
     println "Starting AVD: ${1}"
-    local opts=""
-    [ $# -ge 2 ] && opts="${2}"
-    ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/emulator -avd "${1}" "${opts}" -partition-size 2047 &>/dev/null &
+    ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/emulator -avd $@ -partition-size 2047 &>/dev/null &
 } # start_avd()
 
 reboot_avd() {
