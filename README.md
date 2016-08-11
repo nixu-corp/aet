@@ -1,7 +1,6 @@
 # Android Emulation Toolkit (AET) #
 
 ## Table of contents ##
----
 * [Description](#description)
 * [Prerequisites](#prerequisites)
 * [Getting Started](#getting-started)
@@ -11,7 +10,6 @@
 
 
 ## Description ##
----
 The purpose of this software is to make the testing of Android applications in
 a virtual environment easier, by providing a script that hides the signs of
 the emulator. It also includes a tool setup part that should be used when first
@@ -20,7 +18,6 @@ unmodified environment.
 
 
 ## Prerequisites ##
----
 * A [Bash][1] shell
 * Install Java; [Oracle's Java][2] or [OpenJDK][3]
 * Install [XMLStarlet][4]
@@ -29,7 +26,6 @@ Are you not on Linux? Or are you having problems with the scripts? Check out the
 guide for [manual setup][5]
 
 ## Getting Started ##
----
 #### Clone the project: ####
 ```
 git clone git@github.com:nixu-corp/aet.git
@@ -54,20 +50,17 @@ bin/run-env.sh ~/android-sdk/ android-17-default
 
 
 ## Documentation ##
----
 The [Wiki][10] contains all the information needed.
 
 You can also check out the [Getting Started](#getting-started) section.
 
 
 ## Reporting issues ##
----
 Use the [issue tracker][11]. Please check that the issue has not already
 been submitted!
 
 
 ## Special thanks ##
----
 Kimmo Linnavuo, for assisting in researching emulation detection
 
 Timo Järventausta, for his useful comments about user-friendliness
@@ -76,16 +69,6 @@ Aaro Lehikoinen, for helping with testing and code review
 
 
 ## Contact information ##
----
-Original developer
-
-Name:   Daniel Riissanen
-
-Email:  daniel.riissanen[ät]nixu.com
-
---
-
-Current developer:
 
 Name:   Daniel Riissanen
 
