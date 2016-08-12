@@ -6,21 +6,26 @@ EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
-source ${ROOT_DIR}/utilities.sh
+source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-e <configuration file>] [-m <configuration file>]"
+USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-c <configuration file>] [-e <configuration file>] [-r <configuration file>]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Enable backup for modification scripts
--e, --environment           Installs the environment and the necessary tools
+-c, --create                Installs the environment and the necessary tools
     <configuration file>    OPTIONAL: Configuration file for environment
                             setup
                                 default: conf/setup-tools.conf
 
--m, --modify                Modifies the environment to evade emulation detection
+-e, --emulator              Modifies the environment to evade emulation detection
                             OPTIONAL: Configuration file for emulation detection
                             evasion
-                                default: conf/modify-env.conf
+                                default: conf/emulation-detection-evasion.conf
+
+-r, --root                  Modifier the environment to evade root detection
+                            OPTIONAL: Configuration file for root detection
+                            evasion
+                                default: conf/root-detection-evasion.conf
 
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit"
@@ -29,12 +34,14 @@ HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
 ROOT=0
 SETUP_TOOLS=0
-MODIFY_ENV=0
+EMULATOR_ENV=0
+ROOT_ENV=0
 DO_BACKUP=0
 
 ROOT_PASSWORD=""
 TOOLS_CONF="conf/setup-tools.conf"
-MODIFY_CONF="conf/modify-env.conf"
+EMULATOR_CONF="conf/emulation-detection-evasion.conf"
+ROOT_CONF="conf/root-detection-evasion.conf"
 
 check_dependencies() {
     local ret=0
@@ -60,19 +67,26 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
             DO_BACKUP=1
-        elif [ "${!i}" == "-e" ] || [ "${!i}" == "--environment" ]; then
+        elif [ "${!i}" == "-c" ] || [ "${!i}" == "--create" ]; then
             SETUP_TOOLS=1
             argument_parameter_exists ${i} $@
             if [ $? -eq 0 ]; then
                 TOOLS_CONF="${!i}"
                 i=$((i + 1))
             fi
-        elif [ "${!i}" == "-m" ] || [ "${!i}" == "--modify" ]; then
-            MODIFY_ENV=1
+        elif [ "${!i}" == "-e" ] || [ "${!i}" == "--emulator" ]; then
+            EMULATOR_ENV=1
             argument_parameter_exists ${i} $@
             if [ $? -eq 0 ]; then
-                MODIFY_CONF="${!i}"
                 i=$((i + 1))
+                EMULATOR_CONF="${!i}"
+            fi
+        elif [ "${!i}" == "-r" ] || [ "${!i}" == "--root" ]; then
+            ROOT_ENV=1
+            argument_parameter_exists ${i} $@
+            if [ $? -eq 0 ]; then
+                i=$((i + 1))
+                ROOT_CONF="${!i}"
             fi
         else
             std_err "Unknown argument: ${!i}\n"
@@ -87,7 +101,7 @@ parse_arguments() {
         exit
     fi
 
-    if [ ${SETUP_TOOLS} -eq 0 ] && [ ${MODIFY_ENV} -eq 0 ]; then
+    if [ ${SETUP_TOOLS} -eq 0 ] && [ ${EMULATOR_ENV} -eq 0 ] && [ ${ROOT_ENV} -eq 0 ]; then
         std_err "${USAGE}"
         std_err "See -h for more information"
         exit 1
@@ -98,14 +112,19 @@ parse_arguments() {
         exit 1
     fi
 
-    if [ ${MODIFY_ENV} -eq 1 ] && [ ! -f ${MODIFY_CONF} ]; then
-        std_err "Modify environment configuration file does not exist!"
+    if [ ${EMULATOR_ENV} -eq 1 ] && [ ! -f ${EMULATOR_CONF} ]; then
+        std_err "Emulation detection evasion configuration file does not exist!"
+        exit 1
+    fi
+
+    if [ ${ROOT_ENV} -eq 1 ] && [ ! -f ${ROOT_CONF} ]; then
+        std_err "Root detection evasion configuration file does not exist!"
         exit 1
     fi
 } # parse_arguments()
 
 check_root() {
-    if [ $(id -u) -ne 0 ] && [ ${MODIFY_ENV} -eq 1 ]; then
+    if [ $(id -u) -ne 0 ] && [ ${EMULATOR_ENV} -eq 1 ]; then
         prompt_root
         [ $? -eq 0 ] || exit 1
     fi
@@ -122,20 +141,35 @@ setup_tools() {
     fi
 } # setup_tools()
 
-modify_env() {
-    if [ ${MODIFY_ENV} -eq 1 ]; then
-        local modifiers=""
-        if [ ${SILENT_MODE} -eq 1 ]; then
-            modifiers="--silent"
-        fi
-
-        if [ ${DO_BACKUP} -eq 1 ]; then
-            modifiers="${modifiers} --backup"
-        fi
-
-        printf "${ROOT_PASSWORD}\n" | ${ROOT_DIR}/modify/modify-env.sh ${modifiers} ${MODIFY_CONF}
+offline_emulation_modification() {
+    local modifiers=""
+    if [ ${SILENT_MODE} -eq 1 ]; then
+        modifiers="--silent"
     fi
-} # modify_env()
+
+    if [ ${DO_BACKUP} -eq 1 ]; then
+        modifiers="${modifiers} --backup"
+    fi
+
+    printf "${ROOT_PASSWORD}\n" | ${ROOT_DIR}/modify/emulation-detection-evasion.sh ${modifiers} ${EMULATOR_CONF}
+} # offline_emulation_modification()
+
+root_modification() {
+    local modifiers=""
+    if [ ${SILENT_MODE} -eq 1 ]; then
+        modifiers="--silent"
+    fi
+
+    ${ROOT_DIR}/modify/root-detection-evasion.sh ${modifiers} ${ROOT_CONF}
+} # root_modification()
+
+offline_modification() {
+    [ ${EMULATOR_ENV} -eq 1 ] && offline_emulation_modification
+} # offline_modification()
+
+online_modification() {
+    [ ${ROOT_ENV} -eq 1 ] && root_modification
+} # online_modification()
 
 check_dependencies
 parse_arguments $@
@@ -143,5 +177,6 @@ parse_arguments $@
 println "Started $(date)"
 check_root
 setup_tools
-modify_env
+offline_modification
+online_modification
 println "Finished $(date)"

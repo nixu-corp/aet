@@ -11,6 +11,16 @@ check_avd() {
     fi
 } # check_avd()
 
+emulator_is_running() {
+    # One AVD started
+    # Line 1: List of devices attached
+    # Line 2: emulator-5554     device
+    # Line 3:
+
+    local line_count=$(${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb devices | wc -l)
+    [ ${line_count} -gt 2 ] && return 0 || return 1
+} # emulator_is_running()
+
 start_avd() {
     if [ $# -lt 1 ]; then
         std_err "No AVD name given!"

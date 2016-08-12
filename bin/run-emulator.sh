@@ -93,6 +93,11 @@ check_files() {
 parse_arguments $@
 check_files
 check_avd ${AVD_NAME}
+emulator_is_running
+if [ $? -eq 0 ]; then
+    std_err "Emulator is already running!"
+    exit 1
+fi
 start_avd ${AVD_NAME} ${CLEAR_DATA}
 wait_for_device
 

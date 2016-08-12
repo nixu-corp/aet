@@ -1,5 +1,3 @@
-# The paths should be absolute, DO NOT use '~'
-# The directory paths should NOT end with a '/'
 # eg. /home/user/Android/sdk/android-23/system-images/default/x86
 # eg. C:\Users\user\AppData\Android\sdk\android-23\system-images\default\x86
-/home/daniel/Downloads/sdk/android-sdk-linux/system-images/android-23/default/x86
+~/android-sdk/android-sdk-linux/system-images/android-19/default/x86/

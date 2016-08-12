@@ -52,10 +52,9 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
             for ((j = 0; j < 2; j++)); do
-                i=$((i + 1))
-                check_option_value ${i} $@
+                argument_parameter_exists ${i} $@
                 if [ $? -eq 1 ]; then
-                    if [ ${j} == 0 ]; then
+                    if [ -z "${BACKUP_DIR}" ]; then
                         std_err "No backup directory given for '-b'!\n"
                     else
                         std_err "No backup postfix given for '-b'!\n"
@@ -63,9 +62,11 @@ parse_arguments() {
                     std_err "${USAGE}"
                     std_err "See -h for more information"
                 elif [ -z "${BACKUP_DIR}" ]; then
+                    i=$((i + 1))
                     BACKUP_DIR="${!i}"
                     BACKUP_DIR="${BACKUP_DIR%/}"
                 else
+                    i=$((i + 1))
                     BACKUP_POSTFIX="${!i}"
                 fi
             done

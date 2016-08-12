@@ -7,7 +7,7 @@ EXEC_DIR=${EXEC_DIR%/}
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-env.sh [-b|--backup] [-s|--silent] <configuration file>"
+USAGE="Usage: ./emulation-detection-evasion-env.sh [-b|--backup] [-s|--silent] <configuration file>"
 HELP_TEXT="
 OPTIONS
 -b, --backup            Backups before making any modifications, use
@@ -146,7 +146,7 @@ read_sys_img_file() {
             continue
         fi
 
-        SYS_IMG_DIRS+=("${line}")
+        SYS_IMG_DIRS+=("${line/\~/${HOME}}")
     done < "${SYS_IMG_FILE}"
 
     if [ ${#SYS_IMG_DIRS[@]} -eq 0 ]; then

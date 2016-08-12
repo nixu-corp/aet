@@ -108,10 +108,13 @@ read_conf() {
         elif [ ! -z "${asdk_dir_capture}" ]; then
             ASDK_DIR="${asdk_dir_capture}"
         elif [ ! -z "${a_apis_capture}" ]; then
-            read -r -a A_APIS <<< "android-${a_apis_capture}"
+            read -r -a A_APIS <<< "${a_apis_capture}"
+            A_APIS=("${A_APIS[@]/#/android-}")
         elif [ ! -z "${g_apis_capture}" ]; then
-            read -r -a TMP_A_APIS <<< "android-${g_apis_capture}"
-            read -r -a G_APIS <<< "addon-google_apis-google-${g_apis_capture}"
+            read -r -a TMP_A_APIS <<< "${g_apis_capture}"
+            TMP_A_APIS=("${TMP_A_APIS[@]/#/android-}")
+            read -r -a G_APIS <<< "${g_apis_capture}"
+            G_APIS=("${G_APIS[@]/#/addon-google_apis-google-}")
         elif [ ! -z "${a_platform_capture}" ]; then
             read -r -a A_PLATFORMS <<< "${a_platform_capture}"
         elif [ ! -z "${g_platform_capture}" ]; then

@@ -6,15 +6,14 @@ ROOT_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="Usage: ./root-detection-evasion.sh <configuration file> <avd name> [-c|--clear] [-s|--silent]"
+USAGE="Usage: ./root-detection-evasion.sh <configuration file> [-c|--clear] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -c, --clear                 Wipe user data before booting emulator
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
-<configuration file>        Configuration file for root detection evasion script
-<avd name>                  The name of the AVD to launch"
+<configuration file>        Configuration file for root detection evasion script"
 
 CONF_FILE=""
 ASDK_DIR=""
@@ -25,6 +24,7 @@ SILENT_MODE=0
 WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*\#"
 SDK_REGEX="^sdk_dir[[:blank:]]*=[[:blank:]]*\(.*\)"
+AVD_REGEX="^avd_name[[:blank:]]*=[[:blank:]]*\(.*\)"
 APKS_REGEX="^apks[[:blank:]]*=[[:blank:]]*\(.*\)"
 PACKAGES_REGEX="^packages[[:blank:]]*=[[:blank:]]*\(.*\)"
 EXTENSION_APKS_REGEX="^extension_apks[[:blank:]]*=[[:blank:]]*\(.*\)"
@@ -52,8 +52,6 @@ parse_arguments() {
             CLEAR_DATA="-wipe-data"
         elif [ -z "${CONF_FILE}" ]; then
             CONF_FILE="${!i}"
-        elif [ -z "${AVD}" ]; then
-            AVD="${!i}"
         else
             std_err "Unknown argument: ${!i}"
             std_err "${USAGE}"
@@ -67,8 +65,7 @@ parse_arguments() {
         exit
     fi
 
-    if [ -z "${CONF_FILE}" ] \
-    || [ -z "${AVD}" ]; then
+    if [ -z "${CONF_FILE}" ]; then
         std_err "${USAGE}"
         std_err "See -h for more information"
         exit 1
@@ -93,13 +90,16 @@ read_conf() {
         fi
 
         local sdk_dir_capture=$(expr "${line}" : "${SDK_REGEX}")
+        local avd_capture=$(expr "${line}" : "${AVD_REGEX}")
         local apks_capture=$(expr "${line}" : "${APKS_REGEX}")
         local packages_capture=$(expr "${line}" : "${PACKAGES_REGEX}")
         local extension_apks_capture=$(expr "${line}" : "${EXTENSION_APKS_REGEX}")
         local extension_packages_capture=$(expr "${line}" : "${EXTENSION_PACKAGES_REGEX}")
 
         if [ ! -z "${sdk_dir_capture}" ]; then
-            ASDK_DIR="${sdk_dir_capture}"
+            ASDK_DIR="${sdk_dir_capture/\~/${HOME}}"
+        elif [ ! -z "${avd_capture}" ]; then
+            AVD="${avd_capture}"
         elif [ ! -z "${apks_capture}" ]; then
             read -r -a APKS <<< "${apks_capture}"
         elif [ ! -z "${packages_capture}" ]; then
@@ -113,6 +113,11 @@ read_conf() {
 
     if [ -z "${ASDK_DIR}" ]; then
         std_err "Android SDK directory has not been specified!"
+        exit 1
+    fi
+
+    if [ -z "${AVD}" ]; then
+        std_err "Android Virtual Device has not been specified!"
         exit 1
     fi
 
@@ -179,7 +184,7 @@ install_substrate_extensions() {
     local package=""
     for (( i = 0; i < ${#EXTENSION_APKS[@]}; i++ )); do
         app="${EXTENSION_APKS[${i}]}"
-        package="${EXT_PKGS[${i}]}"
+        package="${EXTENSION_PKGS[${i}]}"
         println "Uninstalling old apk: ${app}"
         ${ADB} shell pm uninstall ${package}
         if [ -f "${ROOT_DIR}/apks/${app}" ]; then
@@ -220,7 +225,7 @@ setup
 
 modifier=""
 [ ${SILENT_MODE} -eq 1 ] && modifier="-s"
-${ROOT_DIR}/bin/run-emulator.sh ${ASDK_DIR} ${AVD} ${modifier}
+emulator_is_running || ${ROOT_DIR}/bin/run-emulator.sh ${ASDK_DIR} ${AVD} ${modifier}
 [ $? -ne 0 ] && exit 1
 
 printfln ""
