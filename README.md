@@ -40,7 +40,7 @@ If you do not have sudo permission, just add `bash` before each command running 
 
 #### Run setup script (See [Setting up environment][6]): ####
 ```
-bin/setup-env.sh -e
+bin/setup-env.sh --create
 ```
 
 #### After that you can fire up the emulator (See [Running emulator][8]): ####
