@@ -61,6 +61,8 @@ been submitted!
 
 
 ## Special thanks ##
+[osm0sis][12], for the [mkbootfs][13] project
+
 Kimmo Linnavuo, for assisting in researching emulation detection
 
 Timo Järventausta, for his useful comments about user-friendliness
@@ -85,3 +87,5 @@ Email:  daniel.riissanen[ät]nixu.com
 [9]: https://github.com/nixu-corp/aet/wiki/Examples
 [10]: https://github.com/nixu-corp/aet/wiki
 [11]: https://github.com/nixu-corp/aet/issues
+[12]: https://github.com/osm0sis
+[13]: https://github.com/osm0sis/mkbootfs
