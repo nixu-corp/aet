@@ -13,7 +13,6 @@ OPTIONS
 -h, --help              Display this help and exit
 
 <configuration file>    Configuration file for setup-tools script"
-HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
 BANNER="
 ========================================
@@ -81,6 +80,11 @@ parse_arguments() {
 } # parse_arguments()
 
 read_conf() {
+    if [ ! -f ${CONF_FILE} ]; then
+        std_err "Setup tools configuration file does not exist!"
+        exit 1
+    fi
+
     while read line; do
         local IFS=$'\t, '
 
