@@ -12,12 +12,14 @@
 ## Description ##
 The purpose of this software is to make the testing of Android applications in
 a virtual environment easier, by providing a script that hides the signs of
-the emulator. It also includes a tool setup part that should be used when first
+the emulator. The toolkit has been upgraded and has now a root detection
+evasion module as well. It also includes a tool setup part that should be used when first
 using the software. It installs all the necessary tools and setups a basic
 unmodified environment.
 
 
 ## Prerequisites ##
+* Only supported for **64-bit**
 * A [Bash][1] shell
 * Install Java; [Oracle's Java][2] or [OpenJDK][3]
 * Install [XMLStarlet][4]
@@ -28,24 +30,26 @@ guide for [manual setup][5]
 ## Getting Started ##
 #### Clone the project: ####
 ```
-git clone git@github.com:nixu-corp/aet.git
-cd aet/
+$ cd ~/
+$ git clone git@github.com:nixu-corp/aet.git
+$ cd aet/
 ```
 
-#### Set executable bit for all scripts: ####
+#### Set executable bit for all scripts and binaries: ####
 ```
-sudo chmod -R +x *.sh
+$ sudo chmod -R +x *.sh
+$ sudo chmod +x bin/mkbootfs
 ```
 If you do not have sudo permission, just add `bash` before each command running a shell script.
 
 #### Run setup script (See [Setting up environment][6]): ####
 ```
-bin/setup-env.sh --create
+$ bin/setup-env.sh --create
 ```
 
 #### After that you can fire up the emulator (See [Running emulator][8]): ####
 ```
-bin/run-emulator.sh ~/android-sdk/ android-17-default
+$ bin/run-emulator.sh ~/android-sdk/ android-17-default
 ```
 
 
