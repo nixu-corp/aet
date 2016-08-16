@@ -6,7 +6,7 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-ramdisk-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <ramdisk directory> <modification file> [ramdisk image file] [default prop file] [mkbootfs file] [-s|--silent]"
+USAGE="Usage: ./modify-ramdisk-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <ramdisk directory> <modification file> [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Backups before making any modifications, use
@@ -19,29 +19,24 @@ OPTIONS
 <backup file postfix>       A postfix after the backup filename
 <system image directory>    Directory of the installed system image
 <ramdisk directory>         Directory where the ramdisk file is being unzipped to
-<modification file>         File with the modifications in key-value pairs
-[ramdisk image file]        OPTIONAL: The name of the ramdisk image file
-                                default: ramdisk.img
-[default prop file]         OPTIONAL: The name of the default property file
-                                default: default.prop
-[mkbootfs file]             OPTIONAL: The name of the mkbootfs binary
-                                default: mkbootfs"
+<modification file>         File with the modifications in key-value pairs"
+
 MODIFICATION_FILE=""
 SYS_IMG_DIR=""
 TMP_RAMDISK_DIR=""
 BACKUP_DIR=""
 BACKUP_POSTFIX=""
 
-RAMDISK_FILE=""
-DEFAULT_PROP_FILE=""
-MKBOOTFS_FILE=""
+RAMDISK_FILE="ramdisk.img"
+DEFAULT_PROP_FILE="default.prop"
+MKBOOTFS_FILE="mkbootfs"
 
 WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*#"
 KEY_REGEX="^[[:blank:]]*\(.*\)=.*$"
 VALUE_REGEX="^.*=\(.*\)$"
 
-declare -A default_prop_changes
+declare -A default_prop_changes=()
 
 parse_arguments() {
     local show_help=0
@@ -64,6 +59,7 @@ parse_arguments() {
                 elif [ -z "${BACKUP_DIR}" ]; then
                     i=$((i + 1))
                     BACKUP_DIR="${!i}"
+                    BACKUP_DIR="${BACKUP_DIR/\~/${HOME}}"
                     BACKUP_DIR="${BACKUP_DIR%/}"
                 else
                     i=$((i + 1))
@@ -72,18 +68,15 @@ parse_arguments() {
             done
         elif [ -z "${SYS_IMG_DIR}" ]; then
             SYS_IMG_DIR="${!i}"
+            SYS_IMG_DIR="${SYS_IMG_DIR/\~/${HOME}}"
             SYS_IMG_DIR="${SYS_IMG_DIR%/}"
         elif [ -z "${TMP_RAMDISK_DIR}" ]; then
             TMP_RAMDISK_DIR="${!i}"
+            TMP_RAMDISK_DIR="${TMP_RAMDISK_DIR/\~/${HOME}}"
             TMP_RAMDISK_DIR="${TMP_RAMDISK_DIR%/}"
         elif [ -z "${MODIFICATION_FILE}" ]; then
             MODIFICATION_FILE="${!i}"
-        elif [ -z "${RAMDISK_FILE}" ]; then
-            RAMDISK_FILE="${!i}"
-        elif [ -z "${DEFAULT_PROP_FILE}" ]; then
-            DEFAULT_PROP_FILE="${!i}"
-        elif [ -z "${MKBOOTFS_FILE}" ]; then
-            MKBOOTFS_FILE="${!i}"
+            MODIFICATION_FILE="${MODIFICATION_FILE/\~/${HOME}}"
         else
             std_err "Unknown argument: ${!i}"
             std_err "${USAGE}"
@@ -133,40 +126,45 @@ parse_arguments() {
             exit 1
         fi
     fi
-
-    if [ -z "${RAMDISK_FILE}" ]; then
-        RAMDISK_FILE="ramdisk.img"
-    fi
-
-    if [ -z "${DEFAULT_PROP_FILE}" ]; then
-        DEFAULT_PROP_FILE="default.prop"
-    fi
-
-    if [ -z "${MKBOOTFS_FILE}" ]; then
-        MKBOOTFS_FILE="mkbootfs"
-    fi
 } # parse_arguments()
 
 setup() {
+    local current_prop=""
     while read line; do
-        if [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
+        if [ "${line}" == "@${DEFAULT_PROP_FILE}" ]; then
+            current_prop="default_prop"
             continue
-        elif [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
-            continue
-        elif [ -z "${line}" ]; then
+        elif [ "${line}" == "@*" ]; then
+            current_prop=""
             continue
         fi
 
-        local key_capture=$(expr "${line}" : "${KEY_REGEX}")
-        local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
-        if [ ! -z "${key_capture}" ]; then
-            default_prop_changes["${key_capture}"]="${value_capture}"
-        else
-            std_err "Unknown configuration found: ${line}"
-            abort
-        fi
+        [ "${current_prop}" == "default_prop" ] && parse_default_prop_change "${line}"
     done < "${MODIFICATION_FILE}"
+
+    [ ${#default_prop_changes[@]} -eq 0 ] && println "WARNING: No changes to be made to ${DEFAULT_PROP_FILE}"
 } # setup()
+
+parse_default_prop_change() {
+    local line="${1}"
+
+    if [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
+        return
+    elif [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
+        return
+    elif [ -z "${line}" ]; then
+        return
+    fi
+
+    local key_capture=$(expr "${line}" : "${KEY_REGEX}")
+    local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
+    if [ ! -z "${key_capture}" ]; then
+        default_prop_changes["${key_capture}"]="${value_capture}"
+    else
+        std_err "Unknown configuration found: ${line}"
+        exit 1
+    fi
+} # parse_default_prop_change()
 
 decompress_ramdisk() {
     local ret=0
@@ -194,11 +192,12 @@ backup_ramdisk_props() {
         ret=1
     fi
 
-    local backup_file="${DEFAULT_PROP_FILE}${BACKUP_POSTFIX}"
+    local backup_file="ramdisk${BACKUP_POSTFIX}"
 
     if [ ${ret} -eq 0 ]; then
         [ -f ${BACKUP_DIR}/${backup_file} ] && rm ${BACKUP_DIR}/${backup_file} &>/dev/null
         
+        printf "@${DEFAULT_PROP_FILE}\n" >> ${BACKUP_DIR}/${backup_file}
         while read line; do
             local key_capture=$(expr "${line}" : "${KEY_REGEX}")
             local value_capture=$(expr "${line}" : "${VALUE_REGEX}")

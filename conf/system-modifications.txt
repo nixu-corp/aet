@@ -1,3 +1,4 @@
+@build.prop
 ro.build.host=host
 ro.build.fingerprint=fingerprint
 ro.build.product=product

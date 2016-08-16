@@ -21,11 +21,7 @@ OPTIONS
 <backup file postfix>       A postfix after the backup filename
 <system image directory>    Directory of the installed system image
 <mount directory>           Directory onto which the system.img file is being mounted
-<modification file>         File with the modifications in key-value pairs
-[system image file]         OPTIONAL: The name of the system image file
-                                default: system.img
-[build prop file]           OPTIONAL: The name of the build property file
-                                default: build.prop"
+<modification file>         File with the modifications in key-value pairs"
 
 MODIFICATION_FILE=""
 SYS_IMG_DIR=""
@@ -33,15 +29,15 @@ TMP_MOUNT_DIR=""
 BACKUP_DIR=""
 BACKUP_POSTFIX=""
 
-SYSTEM_FILE=""
-BUILD_PROP_FILE=""
+SYSTEM_FILE="system.img"
+BUILD_PROP_FILE="build.prop"
 
 WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*#"
 KEY_REGEX="^[[:blank:]]*\(.*\)=.*$"
 VALUE_REGEX="^.*=\(.*\)$"
 
-declare -A build_prop_changes
+declare -A build_prop_changes=()
 
 parse_arguments() {
     local show_help=0
@@ -72,14 +68,13 @@ parse_arguments() {
             done
         elif [ -z "${SYS_IMG_DIR}" ]; then
             SYS_IMG_DIR="${!i}"
+            SYS_IMG_DIR="${SYS_IMG_DIR/\~/${HOME}}"
         elif [ -z "${TMP_MOUNT_DIR}" ]; then
             TMP_MOUNT_DIR="${!i}"
+            TMP_MOUNT_DIR="${TMP_MOUNT_DIR/\~/${HOME}}"
         elif [ -z "${MODIFICATION_FILE}" ]; then
             MODIFICATION_FILE="${!i}"
-        elif [ -z "${SYSTEM_FILE}" ]; then
-            SYSTEM_FILE="${!i}"
-        elif [ -z "${BUILD_PROP_FILE}" ]; then
-            BUILD_PROP_FILE="${!i}"
+            MODIFICATION_FILE="${MODIFICATION_FILE/\~/${HOME}}"
         else
             std_err "Unknown argument: ${!i}"
             std_err "${USAGE}"
@@ -121,35 +116,45 @@ parse_arguments() {
         std_err "Modification file does not exist!"
         exit 1
     fi
-
-    if [ -z "${SYSTEM_FILE}" ]; then
-        SYSTEM_FILE="system.img"
-    fi
-
-    if [ -z "${BUILD_PROP_FILE}" ]; then
-        BUILD_PROP_FILE="build.prop"
-    fi
 } # parse_arguments()
 
 setup() {
+    local current_prop=""
     while read line; do
-        if [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
+        if [ "${line}" == "@${BUILD_PROP_FILE}" ]; then
+            current_prop="build_prop"
             continue
-        elif [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
-            continue
-        elif [ -z "${line}" ]; then
+        elif [ "${line}" == "@" ]; then
+            current_prop=""
             continue
         fi
 
-        local key_capture=$(expr "${line}" : "${KEY_REGEX}")
-        local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
-        if [ ! -z "${key_capture}" ]; then
-            build_prop_changes["${key_capture}"]="${value_capture}"
-        else
-            std_err "Unknown configuration found: ${line}"
-        fi
+        [ "${current_prop}" == "build_prop" ] && parse_build_prop_change "${line}"
     done < "${MODIFICATION_FILE}"
+
+    [ ${#build_prop_changes[@]} -eq 0 ] && println "WARNING: No changes to be made to ${BUILD_PROP_FILE}"
 } # setup()
+
+parse_build_prop_change() {
+    local line="${1}"
+
+    if [ $(expr "${line}" : "${COMMENT_REGEX}") -gt 0 ]; then
+        continue
+    elif [ $(expr "${line}" : "${WHITESPACE_REGEX}") -gt 0 ]; then
+        continue
+    elif [ -z "${line}" ]; then
+        continue
+    fi
+
+    local key_capture=$(expr "${line}" : "${KEY_REGEX}")
+    local value_capture=$(expr "${line}" : "${VALUE_REGEX}")
+    if [ ! -z "${key_capture}" ]; then
+        build_prop_changes["${key_capture}"]="${value_capture}"
+    else
+        std_err "Unknown configuration found: ${line}"
+        exit 1
+    fi
+} # parse_build_prop_change()
 
 mount_system() {
     local ret=0
@@ -181,6 +186,7 @@ backup_system_props() {
     if [ ${ret} -eq 0 ]; then
         [ -f ${BACKUP_DIR}/${backup_file} ] && rm ${BACKUP_DIR}/${backup_file} &>/dev/null
 
+        printf "@${BUILD_PROP_FILE}\n" >> ${BACKUP_DIR}/${backup_file}
         while read line; do
             local key_capture=$(expr "${line}" : "${KEY_REGEX}")
             local value_capture=$(expr "${line}" : "${VALUE_REGEX}")

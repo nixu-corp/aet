@@ -50,9 +50,6 @@ SYSTEM_MODIFICATION_FILE=""
 MKBOOTFS_FILE="mkbootfs"
 SYSTEM_FILE="system.img"
 RAMDISK_FILE="ramdisk.img"
-DEFAULT_PROP_FILE="default.prop"
-
-BUILD_PROP_FILE="build.prop"
 
 DO_BACKUP=0
 SUCCESSES=0
@@ -116,11 +113,13 @@ read_conf() {
         local backup_postfix_capture=$(expr "${line}" : "${BACKUP_POSTFIX_REGEX}")
         if [ ! -z "${sys_img_dir_file_capture}" ]; then
             SYS_IMG_FILE="${sys_img_dir_file_capture}"
-            SYS_IMG_FILE="${SYS_IMG_FILE%/}"
+            SYS_IMG_FILE="${SYS_IMG_FILE/\~/${HOME}}"
         elif [ ! -z "${ramdisk_mod_file_capture}" ]; then
             RAMDISK_MODIFICATION_FILE="${ramdisk_mod_file_capture}"
+            RAMDISK_MODIFICATION_FILE="${RAMDISK_MODIFICATION_FILE/\~/${HOME}}"
         elif [ ! -z "${system_mod_file_capture}" ]; then
             SYSTEM_MODIFICATION_FILE="${system_mod_file_capture}"
+            SYSTEM_MODIFICATION_FILE="${SYSTEM_MODIFICATION_FILE/\~/${HOME}}"
         elif [ ! -z "${backup_dir_capture}" ]; then
             BACKUP_DIR="${backup_dir_capture}"
         elif [ ! -z "${backup_postfix_capture}" ] || [ -z "${backup_postfix_capture}" ]; then
@@ -133,6 +132,7 @@ read_conf() {
 } # read_conf()
 
 read_sys_img_file() {
+    printf "${SYS_IMG_FILE}\n"
     if [ ! -f ${SYS_IMG_FILE} ]; then
         std_err "System image directory file cannot be found!"
         std_err "Please verify the path in the configuration file"
@@ -146,6 +146,7 @@ read_sys_img_file() {
             continue
         fi
 
+        line="${line%/}"
         SYS_IMG_DIRS+=("${line/\~/${HOME}}")
     done < "${SYS_IMG_FILE}"
 
@@ -237,14 +238,14 @@ run() {
         check_files
 
         println "Process ${RAMDISK_FILE}"
-        ${ROOT_DIR}/modify/modify-ramdisk-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_MODIFICATION_FILE} ${RAMDISK_FILE} ${DEFAULT_PROP_FILE} ${MKBOOTFS_FILE}
+        ${ROOT_DIR}/modify/modify-ramdisk-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_MODIFICATION_FILE}
         println ""
 
         println "Process ${SYSTEM_FILE}"
         if [ $(id -u) -eq 0 ]; then
-            ${ROOT_DIR}/modify/modify-system-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
+            ${ROOT_DIR}/modify/modify-system-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE}
         elif [ ! -z "${ROOT_PASSWORD}" ]; then
-            printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE} ${SYSTEM_FILE} ${BUILD_PROP_FILE}
+            printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE}
         else
             println "   No root privileges, skipping..."
         fi
