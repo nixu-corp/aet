@@ -52,6 +52,8 @@ $ bin/setup-env.sh --create
 $ bin/run-emulator.sh ~/android-sdk/ android-17-default
 ```
 
+#### If everything is working, you can take a look at some examples: [Examples][9] ####
+
 
 ## Documentation ##
 The [Wiki][10] contains all the information needed.
