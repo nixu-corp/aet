@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-c <configuration file>] [-e <configuration file>] [-r <configuration file>]"
+USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-w|--wipe] [-c <configuration file>] [-e <configuration file>] [-r <configuration file>]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Enable backup for modification scripts
@@ -27,18 +27,23 @@ OPTIONS
                             evasion
                                 default: conf/root-detection-evasion.conf
 
+-w, --wipe                  Wipe mode, will clean up installed files. if used in
+                            combination with -c or --create it will work as a
+                            clean reinstall
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit"
 
 HELP_MSG="${USAGE}\n${HELP_TEXT}"
 
 ROOT=0
+WIPE=0
 SETUP_TOOLS=0
 EMULATOR_ENV=0
 ROOT_ENV=0
 DO_BACKUP=0
 
 ROOT_PASSWORD=""
+WIPE_CONF="conf/wipe-tools.conf"
 TOOLS_CONF="conf/setup-tools.conf"
 EMULATOR_CONF="conf/emulation-detection-evasion.conf"
 ROOT_CONF="conf/root-detection-evasion.conf"
@@ -67,6 +72,13 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
             DO_BACKUP=1
+        elif [ "${!i}" == "-w" ] || [ "${!i}" == "--wipe" ]; then
+            WIPE=1
+            argument_parameter_exists ${i} $@
+            if [ $? -eq 0 ]; then
+                WIPE_CONF="${!i}"
+                i=$((i + 1))
+            fi
         elif [ "${!i}" == "-c" ] || [ "${!i}" == "--create" ]; then
             SETUP_TOOLS=1
             argument_parameter_exists ${i} $@
@@ -101,9 +113,14 @@ parse_arguments() {
         exit
     fi
 
-    if [ ${SETUP_TOOLS} -eq 0 ] && [ ${EMULATOR_ENV} -eq 0 ] && [ ${ROOT_ENV} -eq 0 ]; then
+    if [ ${SETUP_TOOLS} -eq 0 ] && [ ${EMULATOR_ENV} -eq 0 ] && [ ${ROOT_ENV} -eq 0 ] && [ ${WIPE} -eq 0 ]; then
         std_err "${USAGE}"
         std_err "See -h for more information"
+        exit 1
+    fi
+
+    if [ ${WIPE} -eq 1 ] && [ ! -f ${WIPE_CONF} ]; then
+        std_err "Wipe tools configuration file does not exist!"
         exit 1
     fi
 
@@ -122,6 +139,17 @@ parse_arguments() {
         exit 1
     fi
 } # parse_arguments()
+
+wipe_tools() {
+    if [ ${WIPE} -eq 1 ]; then
+        local modifiers=""
+        if [ ${SILENT_MODE} -eq 1 ]; then
+            modifiers="${modifiers} --silent"
+        fi
+
+        ${ROOT_DIR}/setup/wipe-tools.sh ${modifiers} ${WIPE_CONF}
+    fi
+} # wipe_tools()
 
 check_root() {
     if [ $(id -u) -ne 0 ] && [ ${EMULATOR_ENV} -eq 1 ]; then
@@ -176,6 +204,7 @@ parse_arguments $@
 
 println "Started $(date)"
 check_root
+wipe_tools
 setup_tools
 offline_modification
 online_modification
