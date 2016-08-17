@@ -8,7 +8,7 @@ ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-w|--wipe] [-c <configuration file>] [-e <configuration file>] [-r <configuration file>]"
+USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-w <configuration file>] [-c <configuration file>] [-e <configuration file>] [-r <configuration file>]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Enable backup for modification scripts
@@ -18,18 +18,20 @@ OPTIONS
                                 default: conf/setup-tools.conf
 
 -e, --emulator              Modifies the environment to evade emulation detection
-                            OPTIONAL: Configuration file for emulation detection
+    <configuraiton file>    OPTIONAL: Configuration file for emulation detection
                             evasion
                                 default: conf/emulation-detection-evasion.conf
 
 -r, --root                  Modifier the environment to evade root detection
-                            OPTIONAL: Configuration file for root detection
+    <configuration file>    OPTIONAL: Configuration file for root detection
                             evasion
                                 default: conf/root-detection-evasion.conf
 
 -w, --wipe                  Wipe mode, will clean up installed files. if used in
                             combination with -c or --create it will work as a
                             clean reinstall
+    <configuration file>    OPTIONAL: Configuration file for environment wipe
+                                default: conf/wipe-env.conf
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit"
 
@@ -43,7 +45,7 @@ ROOT_ENV=0
 DO_BACKUP=0
 
 ROOT_PASSWORD=""
-WIPE_CONF="conf/wipe-tools.conf"
+WIPE_CONF="conf/wipe-env.conf"
 TOOLS_CONF="conf/setup-tools.conf"
 EMULATOR_CONF="conf/emulation-detection-evasion.conf"
 ROOT_CONF="conf/root-detection-evasion.conf"
@@ -140,14 +142,14 @@ parse_arguments() {
     fi
 } # parse_arguments()
 
-wipe_tools() {
+wipe_env() {
     if [ ${WIPE} -eq 1 ]; then
         local modifiers=""
         if [ ${SILENT_MODE} -eq 1 ]; then
             modifiers="${modifiers} --silent"
         fi
 
-        ${ROOT_DIR}/setup/wipe-tools.sh ${modifiers} ${WIPE_CONF}
+        ${ROOT_DIR}/setup/wipe-env.sh ${modifiers} ${WIPE_CONF}
     fi
 } # wipe_tools()
 
@@ -204,7 +206,7 @@ parse_arguments $@
 
 println "Started $(date)"
 check_root
-wipe_tools
+wipe_env
 setup_tools
 offline_modification
 online_modification
