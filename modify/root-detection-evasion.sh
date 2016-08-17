@@ -141,23 +141,25 @@ setup() {
     fi
 
     ASDK_DIR="${ASDK_DIR%/}"
-    ADB="${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb"
+
+    println "Adding adb to PATH (this shell only)"
+    export PATH=${PATH}:${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/
 } # setup()
 
 install_root() {
     println "ROOTING"
 
     println "Mounting /system as read-write"
-    ${ADB} shell mount -o rw,remount /system
+    adb shell mount -o rw,remount /system
 
     println "Transfering \'su\' binary"
-    ${ADB} push ${ROOT_DIR}/bin/root/su /system/xbin/su
-    ${ADB} push ${ROOT_DIR}/bin/root/su /system/xbin/surd
+    adb push ${ROOT_DIR}/bin/root/su /system/xbin/su
+    adb push ${ROOT_DIR}/bin/root/su /system/xbin/surd
 
     println "Changing permission"
-    ${ADB} shell chmod 06755 /system
-    ${ADB} shell chmod 06755 /system/xbin/su
-    ${ADB} shell chmod 06755 /system/xbin/surd
+    adb shell chmod 06755 /system
+    adb shell chmod 06755 /system/xbin/su
+    adb shell chmod 06755 /system/xbin/surd
 
     println ""
 } # install_root()
@@ -166,13 +168,13 @@ install_substrate() {
     println "SUBSTRATE"
 
     println "Uninstalling old Substrate"
-    ${ADB} shell pm uninstall com.saurik.substrate
+    adb shell pm uninstall com.saurik.substrate
     println "Installing new Substrate"
-    ${ADB} install ${ROOT_DIR}/apks/Substrate.apk
+    adb install ${ROOT_DIR}/apks/Substrate.apk
     println "Linking Substrate files"
-    ${ADB} shell /data/data/com.saurik.substrate/lib/libSubstrateRun.so do_link
+    adb shell /data/data/com.saurik.substrate/lib/libSubstrateRun.so do_link
     println "Opening Substrate app"
-    ${ADB} shell am start -n com.saurik.substrate/.SetupActivity
+    adb shell am start -n com.saurik.substrate/.SetupActivity
 
     println ""
 } # install_substrate()
@@ -186,10 +188,10 @@ install_substrate_extensions() {
         app="${EXTENSION_APKS[${i}]}"
         package="${EXTENSION_PKGS[${i}]}"
         println "Uninstalling old apk: ${app}"
-        ${ADB} shell pm uninstall ${package}
+        adb shell pm uninstall ${package}
         if [ -f "${ROOT_DIR}/apks/${app}" ]; then
             println "Installing new apk: ${app}"
-            ${ADB} install ${ROOT_DIR}/apks/${app}
+            adb install ${ROOT_DIR}/apks/${app}
         else
             std_err "Could not find apk: ${app}"
         fi
@@ -206,10 +208,10 @@ install_apks() {
         app="${APKS[${i}]}"
         package="${PKGS[${i}]}"
         println "Uninstalling old apk: ${app}"
-        ${ADB} shell pm uninstall ${package}
+        adb shell pm uninstall ${package}
         if [ -f "${ROOT_DIR}/apks/${app}" ]; then
             println "Installing new apk: ${app}"
-            ${ADB} install ${ROOT_DIR}/apks/${app}
+            adb install ${ROOT_DIR}/apks/${app}
         else
             std_err "Could not find apk: ${app}"
         fi

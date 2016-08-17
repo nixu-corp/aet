@@ -132,7 +132,6 @@ read_conf() {
 } # read_conf()
 
 read_sys_img_file() {
-    printf "${SYS_IMG_FILE}\n"
     if [ ! -f ${SYS_IMG_FILE} ]; then
         std_err "System image directory file cannot be found!"
         std_err "Please verify the path in the configuration file"
