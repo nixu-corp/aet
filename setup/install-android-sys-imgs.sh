@@ -5,23 +5,28 @@ set -u
 EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 
-USAGE="Usage: ./install-android-sys-imgs.sh <download directory> <android sdk directory> [-a android platforms] [-g google platforms] [-s|--silent]"
+USAGE="Usage: ./install-android-sys-imgs.sh <download directory> <android sdk directory> [-a android platforms] [-g google platforms] [-d|--debug] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -a <android platforms>      Android platforms comma-separated in this format: <API>:<platform>
                             eg. '23:x86' for android-23, x86 cpu architecture
 -g <google platforms>       Google platforms comma-separated in this format: <API>:<platform>
                             eg. '23:x86; for android-23, x86 cpu architecture
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
 <download directory>
 <android sdk directory>     Android SDK installation directory"
 
+DEBUG_MODE=0
+SILENT_MODE=0
+
 DOWNLOAD_DIR=""
 ASDK_DIR=""
-
 XML_FILE="sys-img.xml"
 SYS_IMG_FILE=""
 
@@ -38,6 +43,8 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ "${!i}" == "-a" ]; then
             while true; do
                 argument_parameter_exists ${i} $@
@@ -92,7 +99,7 @@ parse_arguments() {
         exit 1
     fi
 
-    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
+    log "INFO" "$(mkdir -p ${DOWNLOAD_DIR} 2>&1)"
     if [ ! -d ${DOWNLOAD_DIR} ]; then
         std_err "Download directory does not exist!"
     fi
@@ -121,7 +128,7 @@ install_sdk_sys_imgs() {
             unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/android-${api}/${tag_id}/"
             [ $? -eq 0 ] || continue
         done
-        rm "${DOWNLOAD_DIR}/${XML_FILE}" &>/dev/null
+        log "INFO" "$(rm "${DOWNLOAD_DIR}/${XML_FILE}" 2>&1)"
     fi
 
     if [ ${#G_PLATFORMS[@]} -gt 0 ]; then
@@ -141,7 +148,7 @@ install_sdk_sys_imgs() {
             unzip_file "${DOWNLOAD_DIR}" "${SYS_IMG_FILE}" "${ASDK_DIR}/$(ls ${ASDK_DIR})/system-images/android-${api}/${tag_id}/"
             [ $? -eq 0 ] || continue
         done
-        rm "${DOWNLOAD_DIR}/${XML_FILE}" &>/dev/null
+        log "INFO" "$(rm "${DOWNLOAD_DIR}/${XML_FILE}" 2>&1)"
     fi
     clear_println ""
 } # install_sdk_sys_imgs()

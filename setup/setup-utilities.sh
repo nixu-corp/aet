@@ -26,7 +26,7 @@ check_downloaded_file() {
     local reference_data=$(grep "${file}" "${ROOT_DIR}/security/file-download-reference.txt")
 
     if [ -z "${reference_data}" ]; then
-        println "Unknown file!"
+        std_err "Unknown file!"
         return 1
     fi
 
@@ -34,9 +34,9 @@ check_downloaded_file() {
     local sha1=$(sha1sum "${full_file}" | sed "s/[[:blank:]].*//")
     
     if [ "${sha1}" != "${reference_sha1}" ]; then
-        println "[\033[0;31mFAIL\033[0m] SHA1 checksum mismatch!"
-        println "Downloaded file's SHA1: ${sha1}"
-        println "Correct SHA1            ${reference_sha1}"
+        std_err "[\033[0;31mFAIL\033[0m] SHA1 checksum mismatch!"
+        std_err "Downloaded file's SHA1: ${sha1}"
+        std_err "Correct SHA1            ${reference_sha1}"
         return 1
     else
         println "[\033[0;32m OK \033[0m] SHA1 checksum match"
@@ -46,9 +46,9 @@ check_downloaded_file() {
     local size=$(du -b ${full_file} | sed "s/[[:blank:]].*//")
 
     if [ "${size}" != "${reference_size}" ]; then
-        println "[\033[0;31mFAIL\033[0m] File size mismatch!"
-        println "Downloaded file's size: ${size}"
-        println "Correct file size:      ${reference_size}"
+        std_err "[\033[0;31mFAIL\033[0m] File size mismatch!"
+        std_err "Downloaded file's size: ${size}"
+        std_err "Correct file size:      ${reference_size}"
         return 1
     else
         println "[\033[0;32m OK \033[0m] File size match"
@@ -63,14 +63,14 @@ unzip_file() {
     loading "Unzipping \033[1;35m${file}\033[0m" &
     local extension="${file##*.}"
     if [ "${extension}" == "gz" ] || [ "${extension}" == "tgz" ]; then
-        tar -zxvf "${src_dir}/${file}" --overwrite -C "${dest_dir}" &>/dev/null
+        log "INFO" "$(tar -zxvf "${src_dir}/${file}" --overwrite -C "${dest_dir}" 2>&1)"
     elif [ "${extension}" == "zip" ]; then
-        unzip -o -d "${dest_dir}" "${src_dir}/${file}" &>/dev/null
+        log "INFO" "$(unzip -o -d "${dest_dir}" "${src_dir}/${file}" 2>&1)"
     else
-        printf "Unknown file format"
+        std_err "Unknown file format!"
     fi
     kill $!
     trap 'kill $1' SIGTERM
-    rm "${src_dir}/${file}" &>/dev/null
+    log "INFO" "$(rm "${src_dir}/${file}" 2>&1)"
     clear_println "[Unzipping \033[1;35m${file}\033[0m] Done."
 } # unzip_android_sdk

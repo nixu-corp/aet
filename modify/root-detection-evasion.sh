@@ -4,22 +4,26 @@ set -u
 
 ROOT_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 source ${ROOT_DIR}/emulator-utilities.sh
 
 USAGE="Usage: ./root-detection-evasion.sh <configuration file> [-c|--clear] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -c, --clear                 Wipe user data before booting emulator
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
 <configuration file>        Configuration file for root detection evasion script"
 
+SILENT_MODE=0
+DEBUG_MODE=0
 CONF_FILE=""
 ASDK_DIR=""
 AVD=""
 ADB=""
-SILENT_MODE=0
 
 WHITESPACE_REGEX="^[[:blank:]]*$"
 COMMENT_REGEX="^[[:blank:]]*\#"
@@ -48,6 +52,8 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ "${!i}" == "-c" ] || [ "${!i}" == "--clear" ]; then
             CLEAR_DATA="-wipe-data"
         elif [ -z "${CONF_FILE}" ]; then

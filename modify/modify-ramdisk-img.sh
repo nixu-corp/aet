@@ -4,6 +4,8 @@ EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 source ${ROOT_DIR}/utilities.sh
 
 USAGE="Usage: ./modify-ramdisk-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <ramdisk directory> <modification file> [-s|--silent]"
@@ -12,6 +14,7 @@ OPTIONS
 -b, --backup                Backups before making any modifications, use
                             this if you plan on reverting back at some
                             point
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
@@ -20,6 +23,9 @@ OPTIONS
 <system image directory>    Directory of the installed system image
 <ramdisk directory>         Directory where the ramdisk file is being unzipped to
 <modification file>         File with the modifications in key-value pairs"
+
+SILENT_MODE=0
+DEBUG_MODE=0
 
 MODIFICATION_FILE=""
 SYS_IMG_DIR=""
@@ -45,6 +51,8 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
             for ((j = 0; j < 2; j++)); do
                 argument_parameter_exists ${i} $@
@@ -169,11 +177,10 @@ parse_default_prop_change() {
 decompress_ramdisk() {
     local ret=0
     cd "${ROOT_DIR}/${TMP_RAMDISK_DIR}"
-    {
-        gzip -dc "${SYS_IMG_DIR}/${RAMDISK_FILE}" | cpio -i
-        ret=$?
-    } &>/dev/null
-    cd ..
+    gzip -dc "${SYS_IMG_DIR}/${RAMDISK_FILE}" | cpio -i &>/dev/null
+    ret=$?
+
+    cd ${ROOT_DIR}
     if [ ${ret} -eq 0 ]; then
         println "   [\033[0;32m OK \033[0m] Decompressing \033[1;35m${RAMDISK_FILE}\033[0m"
     else
@@ -195,7 +202,7 @@ backup_ramdisk_props() {
     local backup_file="ramdisk${BACKUP_POSTFIX}"
 
     if [ ${ret} -eq 0 ]; then
-        [ -f ${BACKUP_DIR}/${backup_file} ] && rm ${BACKUP_DIR}/${backup_file} &>/dev/null
+        [ -f ${BACKUP_DIR}/${backup_file} ] && log "INFO" "$(rm ${BACKUP_DIR}/${backup_file} 2>&1)"
         
         printf "@${DEFAULT_PROP_FILE}\n" >> ${BACKUP_DIR}/${backup_file}
         while read line; do
@@ -270,12 +277,13 @@ compress_ramdisk() {
 } # compress_ramdisk()
 
 cleanup() {
-    rm -r "${ROOT_DIR}/${TMP_RAMDISK_DIR}" &>/dev/null
+    local output=$(rm -r "${ROOT_DIR}/${TMP_RAMDISK_DIR}" 2>&1)
     if [ $? -eq 0 ]; then
         println "   [\033[0;32m OK \033[0m] Cleanup"
     else
         println "   [\033[0;31mFAIL\033[0m] Cleanup"
     fi
+    log "INFO" "${output}"
 } # cleanup
 
 parse_arguments $@

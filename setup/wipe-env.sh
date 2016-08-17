@@ -5,10 +5,13 @@ set -u
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
 source ${ROOT_DIR}/utilities.sh
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 
 USAGE="Usage: ./wipe-tools.sh [-s|--silent] <configuration file>"
 HELP_TEXT="
 OPTIONS
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent            Silent mode, suppresses all output
 -h, --help              Display this help and exit
 
@@ -23,6 +26,7 @@ BANNER="
 ========================================
 "
 
+DEBUG_MODE=0
 SILENT_MODE=0
 CONF_FILE=""
 
@@ -43,6 +47,8 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
             show_help=1
+        elif [ "${i}" == "-d" ] || [ "${i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ -z "${CONF_FILE}" ]; then
             CONF_FILE="${i}"
             CONF_FILE="${CONF_FILE/\~/${HOME}}"
@@ -104,35 +110,39 @@ read_conf() {
 
 wipe_tools() {
     println "${BANNER}"
+    local output=""
     if [ ! -z "${ASTUDIO_DIR}" ] && [ -d ${ASTUDIO_DIR} ]; then
-        rm -r ${ASTUDIO_DIR} &>/dev/null
+        output="$(rm -r ${ASTUDIO_DIR} 2>&1)"
         if [ $? -eq 0 ]; then
             println "[\033[0;32m OK \033[0m] Delete Android Studio"
         else
             println "[\033[0;31mFAIL\033[0m] Delete Android Studio"
         fi
+        log "INFO" "${output}"
     else
         println "Skipping Android Studio"
     fi
 
     if [ ! -z "${ASDK_DIR}" ] && [ -d ${ASDK_DIR} ]; then
-        rm -r ${ASDK_DIR} &>/dev/null
+        output="$(rm -r ${ASDK_DIR} 2>&1)"
         if [ $? -eq 0 ]; then
             println "[\033[0;32m OK \033[0m] Delete Android SDK"
         else
             println "[\033[0;31mFAIL\033[0m] Delete Android SDK"
         fi
+        log "INFO" "${output}"
     else
         println "Skipping Android SDK"
     fi
 
-    if [ ! -z "${AVD_DIR}" ] && [ -d ${ASDK_DIR} ]; then
-        rm -r ${AVD_DIR}/* &>/dev/null
+    if [ ! -z "${AVD_DIR}" ] && [ -d ${AVD_DIR} ]; then
+        output="$(rm -r ${AVD_DIR}/* 2>&1)"
         if [ $? -eq 0 ]; then
             println "[\033[0;32m OK \033[0m] Delete Android Virtual Devices"
         else
             println "[\033[0;31mFAIL\033[0m] Delete Android Virtual Devices"
         fi
+        log "INFO" "${output}"
     else
         println "Skipping Android Virtual Devices"
     fi

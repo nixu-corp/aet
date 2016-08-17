@@ -5,10 +5,13 @@ set -u
 EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 
-USAGE="Usage: ./setup-tools.sh [-s|--silent] <configuration file>"
+USAGE="Usage: ./setup-tools.sh [-d|--debug] [-s|--silent] <configuration file>"
 HELP_TEXT="
 OPTIONS
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent            Silent mode, suppresses all output except result
 -h, --help              Display this help and exit
 
@@ -22,6 +25,8 @@ BANNER="
 >                                      <
 ========================================
 "
+DEBUG_MOD=0
+SILENT_MODE=0
 
 ANDROID_SDK_SYS_IMG_BASE_URL="https://dl.google.com/android/repository/sys-img"
 ANDROID_SDK_SYS_IMG_URL=""
@@ -57,6 +62,8 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${i}" == "-h" ] || [ "${i}" == "--help" ]; then
             show_help=1
+        elif [ "${i}" == "-d" ] || [ "${i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ -z "${CONF_FILE}" ]; then
             CONF_FILE="${i}"
         else
@@ -169,30 +176,29 @@ read_conf
 check_filesystem
 println "${BANNER}"
 
-silent_modifier=""
-if [ "${SILENT_MODE}" == "1" ]; then
-    silent_modifier="--silent"
-fi
+modifiers=""
+[ ${SILENT_MODE} -eq 1 ] && modifiers="${modifiers} --silent"
+[ ${DEBUG_MODE} -eq 1 ] && modifiers="${modifiers} --debug"
 
-${EXEC_DIR}/install-android-studio.sh ${DOWNLOAD_DIR} ${ASTUDIO_DIR} ${STUDIO_FILE} ${silent_modifier}
+${EXEC_DIR}/install-android-studio.sh ${DOWNLOAD_DIR} ${ASTUDIO_DIR} ${STUDIO_FILE} ${modifiers}
 SKIP=$?
 
 if [ ${SKIP} -eq 0 ]; then
-    ${EXEC_DIR}/install-android-sdk.sh ${DOWNLOAD_DIR} ${ASDK_DIR} ${SDK_FILE} -a "${A_APIS[@]}" -g "${G_APIS[@]}" ${silent_modifier}
+    ${EXEC_DIR}/install-android-sdk.sh ${DOWNLOAD_DIR} ${ASDK_DIR} ${SDK_FILE} -a "${A_APIS[@]}" -g "${G_APIS[@]}" ${modifiers}
     SKIP=$?
 else
     println "Skipping Android SDK installation"
 fi
 
 if [ ${SKIP} -eq 0 ]; then
-    ${EXEC_DIR}/install-android-sys-imgs.sh ${DOWNLOAD_DIR} ${ASDK_DIR} -a "${A_PLATFORMS[@]}" -g "${G_PLATFORMS[@]}" ${silent_modifier}
+    ${EXEC_DIR}/install-android-sys-imgs.sh ${DOWNLOAD_DIR} ${ASDK_DIR} -a "${A_PLATFORMS[@]}" -g "${G_PLATFORMS[@]}" ${modifiers}
     SKIP=$?
 else
     println "Skipping system image installation"
 fi
 
 if [ ${SKIP} -eq 0 ]; then
-    ${EXEC_DIR}/install-avds.sh ${ASDK_DIR} "${AVD_CONF_FILES[@]}" ${silent_modifier}
+    ${EXEC_DIR}/install-avds.sh ${ASDK_DIR} "${AVD_CONF_FILES[@]}" ${modifiers}
     SKIP=$?
 else
     println "Skipping AVD installation"

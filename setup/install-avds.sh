@@ -3,15 +3,21 @@
 EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 
-USAGE="Usage: ./install-avd.sh <android sdk directory> <avd configuration files> [-s|--silent]"
+USAGE="Usage: ./install-avd.sh <android sdk directory> <avd configuration files> [-d|--debug] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
 <android sdk directory>     Android SDK installation directory
 <avd configuration files>   AVD configuration files, each one as a separate argument"
+
+DEBUG_MODE=0
+SILENT_MODE=0
 
 ANDROID_SDK_DIR=""
 AVD_CONF_FILES=()
@@ -34,6 +40,8 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ -z "${ANDROID_SDK_DIR}" ]; then
             ANDROID_SDK_DIR="${!i/\~/${HOME}}"
         else
@@ -179,7 +187,7 @@ check_avd() {
 
 create_avd() {
     loading "Creating AVD \"${AVD_NAME}\"" &
-    printf "\n" | ${ANDROID_SDK_DIR}/$(ls ${ANDROID_SDK_DIR})/tools/android create avd --name "${AVD_NAME}" --target "${AVD_TARGET}" --tag "${AVD_TAG}" --abi "${AVD_ABI}" &>/dev/null
+    log "INFO" "$(printf "\n\n" | ${ANDROID_SDK_DIR}/$(ls ${ANDROID_SDK_DIR})/tools/android create avd --name "${AVD_NAME}" --target "${AVD_TARGET}" --tag "${AVD_TAG}" --abi "${AVD_ABI}" 2>&1)"
     kill $!
     trap 'kill $1' SIGTERM
     clear_println ""

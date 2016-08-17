@@ -3,18 +3,25 @@
 EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 
-USAGE="Usage: ./install-android-sdk.sh <download directory> <android sdk directory> <android sdk tgz file> [-a android apis] [-g google apis] [-s|--silent]"
+USAGE="Usage: ./install-android-sdk.sh <download directory> <android sdk directory> <android sdk tgz file> [-a android apis] [-g google apis] [-d|--debug] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -a <android apis>           API's comma-separated; eg 23 for Android SDK 23
 -g <google apis>            API's comma-separated; eg 23 for Google SDK 23
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
 <download directory>
 <android sdk directory>     Android SDK installation directory
 <android sdk tgz file>      The android sdk download file name"
+
+DEBUG_MODE=0
+SILENT_MODE=0
+
 DOWNLOAD_DIR=""
 ASDK_DIR=""
 SDK_FILE=""
@@ -29,6 +36,8 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-h" ] || [ "${!i}" == "--help" ]; then
             show_help=1
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ "${!i}" == "-a" ]; then
             while true; do
                 argument_parameter_exists ${i} $@
@@ -84,8 +93,8 @@ parse_arguments() {
     DOWNLOAD_DIR=${DOWNLOAD_DIR%/}
     ASDK_DIR=${ASDK_DIR%/}
 
-    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
-    mkdir -p ${ASDK_DIR} &>/dev/null
+    log "INFO" "$(mkdir -p ${DOWNLOAD_DIR} 2>&1)"
+    log "INFO" "$(mkdir -p ${ASDK_DIR} 2>&1)"
 } # parse_arguments()
 
 install_android_sdk() {
@@ -276,7 +285,8 @@ process_package_info() {
 
 install_package() {
     loading "Installing ${package_desc}" &
-    (printf "y" | ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android update sdk --no-ui --filter ${package_name}) &>/dev/null
+    local output="$(printf "y" | ${ASDK_DIR}/$(ls ${ASDK_DIR})/tools/android update sdk --no-ui --filter ${package_name} 2>&1)"
+    log "INFO" "${output}"
     previous_ID=${package_ID}
     previous_name=${package_name}
     previous_desc=${package_desc}

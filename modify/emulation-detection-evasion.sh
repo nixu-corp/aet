@@ -5,14 +5,18 @@ set -u
 EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXEC_DIR=${EXEC_DIR%/}
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
+ROOT_DIR=${ROOT_DIR%/}
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./emulation-detection-evasion-env.sh [-b|--backup] [-s|--silent] <configuration file>"
+USAGE="Usage: ./emulation-detection-evasion-env.sh [-b|--backup] [-d|--debug] [-s|--silent] <configuration file>"
 HELP_TEXT="
 OPTIONS
 -b, --backup            Backups before making any modifications, use
                         this if you plan on reverting back at some
                         point
+-d, --debug             Debug mode, command output is logged to logs/AET.log
 -s, --silent            Silent mode, suppresses all output except result
 -h, --help              Display this help and exit
 
@@ -51,6 +55,8 @@ MKBOOTFS_FILE="mkbootfs"
 SYSTEM_FILE="system.img"
 RAMDISK_FILE="ramdisk.img"
 
+SILENT_MODE=0
+DEBUG_MODE=0
 DO_BACKUP=0
 SUCCESSES=0
 
@@ -67,6 +73,8 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
             DO_BACKUP=1
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ -z "${CONF_FILE}" ]; then
             CONF_FILE="${!i}"
         else
@@ -93,7 +101,7 @@ parse_arguments() {
         exit 1
     fi
 
-    [ $(id -u) -eq 0 ] || prompt_root &>/dev/null
+    [ $(id -u) -eq 0 ] || prompt_root
 } # parse_arguments()
 
 read_conf() {
@@ -175,7 +183,6 @@ check_files() {
         msg+=("System image cannot be found!")
     fi
 
-    ROOT_DIR=${ROOT_DIR%/}
     if [ -f "${ROOT_DIR}/bin/${MKBOOTFS_FILE}" ]; then
         println "[\033[0;32m OK \033[0m] ${ROOT_DIR}/bin/${MKBOOTFS_FILE}"
     else
@@ -214,13 +221,16 @@ run() {
 
     println "${BANNER}"
 
-    local modifier=""
+    local modifiers=""
     if [ ${DO_BACKUP} -eq 1 ]; then
         if [ -z "${BACKUP_POSTFIX}" ]; then
             BACKUP_POSTFIX="_$(date +%F-%H-%M-%S).bak"
         fi
-        modifier="--backup ${BACKUP_DIR} ${BACKUP_POSTFIX}"
+        modifiers="--backup ${BACKUP_DIR} ${BACKUP_POSTFIX}"
     fi
+
+    [ ${SILENT_MODE} -eq 1 ] && modifiers="${modifiers} --silent"
+    [ ${DEBUG_MODE} -eq 1 ] && modifiers="${modifiers} --debug"
 
     for i in "${SYS_IMG_DIRS[@]}"; do
         SYS_IMG_DIR="${i}"
@@ -237,14 +247,14 @@ run() {
         check_files
 
         println "Process ${RAMDISK_FILE}"
-        ${ROOT_DIR}/modify/modify-ramdisk-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_MODIFICATION_FILE}
+        ${ROOT_DIR}/modify/modify-ramdisk-img.sh ${modifiers} ${SYS_IMG_DIR} ${TMP_RAMDISK_DIR} ${RAMDISK_MODIFICATION_FILE}
         println ""
 
         println "Process ${SYSTEM_FILE}"
         if [ $(id -u) -eq 0 ]; then
-            ${ROOT_DIR}/modify/modify-system-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE}
+            ${ROOT_DIR}/modify/modify-system-img.sh ${modifiers} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE}
         elif [ ! -z "${ROOT_PASSWORD}" ]; then
-            printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${modifier} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE}
+            printf "${ROOT_PASSWORD}\n" | sudo -k -S -s ${ROOT_DIR}/modify/modify-system-img.sh ${modifiers} ${SYS_IMG_DIR} ${TMP_MOUNT_DIR} ${SYSTEM_MODIFICATION_FILE}
         else
             println "   No root privileges, skipping..."
         fi

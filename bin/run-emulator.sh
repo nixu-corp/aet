@@ -6,12 +6,15 @@ EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="./run-emulator.sh <android sdk directory> <avd name> [-c|--clear] [-s|--silent]"
+USAGE="./run-emulator.sh <android sdk directory> <avd name> [-c|--clear] [-d|--debug] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -c, --clear                 Wipe user data before booting emulator
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
@@ -23,6 +26,7 @@ AVD_NAME=""
 CLEAR_DATA=""
 
 SILENT_MODE=0
+DEBUG_MODE=0
 
 parse_arguments() {
     if [ $# -eq 0 ]; then
@@ -39,6 +43,8 @@ parse_arguments() {
             SILENT_MODE=1
         elif [ "${!i}" == "-c" ] || [ "${!i}" == "--clear" ]; then
             CLEAR_DATA="-wipe-data"
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ -z "${ASDK_DIR}" ]; then
             ASDK_DIR="${!i/~/${HOME}}"
             ASDK_DIR="${ASDK_DIR%/}"
@@ -104,7 +110,7 @@ wait_for_device
 if [ $? -eq 0 ]; then
     println "AVD is running"
 else
-    ${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb emu kill &>/dev/null
+    log "DEBUG" "$(${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb emu kill 2>&1)"
     std_err "Failed to start emulator!"
     exit 1
 fi

@@ -62,7 +62,27 @@ clear_printfln() {
 
 std_err() {
     println "${1}" 1>&2
+    log "ERROR" "${1}"
 } # std_err()
+
+std_ferr() {
+    printfln "${1}" 1>&2
+    log "ERROR" "${1}"
+} # std_ferr()
+
+log() {
+    [ $# -eq 2 ] || return
+    [ ${DEBUG_MODE} -eq 1 ] || return
+    [ -z "${LOG_DIR}" ] || [ -z "${LOG_FILE}" ] && return
+
+    local tag="${1}"
+    local msg="${2}"
+    [ -z "${msg}" ] && return
+
+    [ -d ${LOG_DIR} ] || mkdir ${LOG_DIR}
+    printf "\r$(tput el)"
+    printf "$(date) - [${tag}]:\n%s\n\n%s\n\n" "${msg}" "------------------------" >> ${LOG_DIR}/${LOG_FILE}
+} # log()
 
 argument_parameter_exists() {
     local index="${1}"
@@ -95,7 +115,7 @@ prompt_root() {
         else
             failed_count=$((failed_count + 1))
             if [ ${failed_count} -ge 3 ]; then
-                println "sudo: 3 incorrect password attempts"
+                std_err "sudo: 3 incorrect password attempts"
                 return 1
             fi
             println "Sorry, try again."

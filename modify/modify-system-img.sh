@@ -6,14 +6,17 @@ EXEC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 source ${ROOT_DIR}/utilities.sh
 
-USAGE="Usage: ./modify-system-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <mount directory> <modification file> [system image file] [build prop file] [-s|--silent]"
+USAGE="Usage: ./modify-system-img.sh [-b <backup directory> <backup file postfix>] <system image dir> <mount directory> <modification file> [system image file] [build prop file] [-d|--debug] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Backups before making any modifications, use
                             this if you plan on reverting back at some
                             point
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
@@ -22,6 +25,9 @@ OPTIONS
 <system image directory>    Directory of the installed system image
 <mount directory>           Directory onto which the system.img file is being mounted
 <modification file>         File with the modifications in key-value pairs"
+
+SILENT_MODE=0
+DEBUG_MODE=0
 
 MODIFICATION_FILE=""
 SYS_IMG_DIR=""
@@ -46,6 +52,8 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-s" ] || [ "${!i}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
             for ((j = 0; j < 2; j++)); do
                 argument_parameter_exists ${i} $@
@@ -184,7 +192,7 @@ backup_system_props() {
     local backup_file="system${BACKUP_POSTFIX}"
 
     if [ ${ret} -eq 0 ]; then
-        [ -f ${BACKUP_DIR}/${backup_file} ] && rm ${BACKUP_DIR}/${backup_file} &>/dev/null
+        [ -f ${BACKUP_DIR}/${backup_file} ] && log "INFO" "$(rm ${BACKUP_DIR}/${backup_file} 2>&1)"
 
         printf "@${BUILD_PROP_FILE}\n" >> ${BACKUP_DIR}/${backup_file}
         while read line; do
@@ -248,7 +256,7 @@ unmount_system() {
     local count=0
     local mountOutput="$(mount | grep "${ROOT_DIR}/${TMP_MOUNT_DIR}")"
     until [ -z "${mountOutput}" ]; do
-        umount "${ROOT_DIR}/${TMP_MOUNT_DIR}" &>/dev/null
+        log "INFO" "$(umount "${ROOT_DIR}/${TMP_MOUNT_DIR}" 2>&1)"
         mountOutput="$(mount | grep "${ROOT_DIR}/${TMP_MOUNT_DIR}")"
         count=$((count + 1))
         if [ ${count} -gt 5 ]; then
@@ -267,12 +275,13 @@ unmount_system() {
 } # unmount_system()
 
 cleanup() {
-    rm -r ${ROOT_DIR}/${TMP_MOUNT_DIR} &>/dev/null
+    local output=$(rm -r ${ROOT_DIR}/${TMP_MOUNT_DIR} 2>&1)
     if [ $? -eq 0 ]; then
         println "   [\033[0;32m OK \033[0m] Cleanup"
     else
         println "   [\033[0;31mFAIL\033[0m] Cleanup"
     fi
+    log "INFO" "${output}"
 } # cleanup
 
 parse_arguments $@

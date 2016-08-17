@@ -3,16 +3,22 @@
 EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 source ${EXEC_DIR}/setup-utilities.sh
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 
-USAGE="Usage: ./install-android-studio.sh <download directory> <android studio directory> <android studio zip file> [-s|--silent]"
+USAGE="Usage: ./install-android-studio.sh <download directory> <android studio directory> <android studio zip file> [-d|--debug] [-s|--silent]"
 HELP_TEXT="
 OPTIONS
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit
 
 <download directory>
 <android studio directory>  Android Studio installation directory
 <android studio zip file>   The android studio download file name"
+
+DEBUG_MODE=0
+SILENT_MODE=0
 
 DOWNLOAD_DIR=""
 ASTUDIO_DIR=""
@@ -25,6 +31,8 @@ parse_arguments() {
             show_help=1
         elif [ "${arg}" == "-s" ] || [ "${arg}" == "--silent" ]; then
             SILENT_MODE=1
+        elif [ "${arg}" == "-d" ] || [ "${arg}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ -z "${DOWNLOAD_DIR}" ]; then
             DOWNLOAD_DIR="${arg/\~/${HOME}}"
         elif [ -z "${ASTUDIO_DIR}" ]; then
@@ -55,8 +63,8 @@ parse_arguments() {
     DOWNLOAD_DIR=${DOWNLOAD_DIR%/}
     ASTUDIO_DIR=${ASTUDIO_DIR%/}
 
-    mkdir -p ${DOWNLOAD_DIR} &>/dev/null
-    mkdir -p ${ASTUDIO_DIR} &>/dev/null
+    log "INFO" "$(mkdir -p ${DOWNLOAD_DIR} 2>&1)"
+    log "INFO" "$(mkdir -p ${ASTUDIO_DIR} 2>&1)"
 } # parse_arguments()
 
 install_android_studio() {

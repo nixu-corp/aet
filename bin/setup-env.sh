@@ -6,9 +6,11 @@ EXEC_DIR="$(cd "$(dirname ${BASH_SOURCE[0]})" && pwd)"
 EXEC_DIR="${EXEC_DIR%/}"
 ROOT_DIR="$(cd "${EXEC_DIR}/.." && pwd)"
 ROOT_DIR="${ROOT_DIR%/}"
+LOG_DIR="${ROOT_DIR}/logs"
+LOG_FILE="AET.log"
 source ${ROOT_DIR}/emulator-utilities.sh
 
-USAGE="Usage: ./setup-env.sh [-b|--backup] [-s|--silent] [-w <configuration file>] [-c <configuration file>] [-e <configuration file>] [-r <configuration file>]"
+USAGE="Usage: ./setup-env.sh [-b|--backup] [-d|--debug] [-s|--silent] [-w <configuration file>] [-c <configuration file>] [-e <configuration file>] [-r <configuration file>]"
 HELP_TEXT="
 OPTIONS
 -b, --backup                Enable backup for modification scripts
@@ -32,6 +34,8 @@ OPTIONS
                             clean reinstall
     <configuration file>    OPTIONAL: Configuration file for environment wipe
                                 default: conf/wipe-env.conf
+
+-d, --debug                 Debug mode, command output is logged to logs/AET.log
 -s, --silent                Silent mode, suppresses all output except result
 -h, --help                  Display this help and exit"
 
@@ -43,6 +47,8 @@ SETUP_TOOLS=0
 EMULATOR_ENV=0
 ROOT_ENV=0
 DO_BACKUP=0
+SILENT_MODE=0
+DEBUG_MODE=0
 
 ROOT_PASSWORD=""
 WIPE_CONF="conf/wipe-env.conf"
@@ -74,6 +80,8 @@ parse_arguments() {
             show_help=1
         elif [ "${!i}" == "-b" ] || [ "${!i}" == "--backup" ]; then
             DO_BACKUP=1
+        elif [ "${!i}" == "-d" ] || [ "${!i}" == "--debug" ]; then
+            DEBUG_MODE=1
         elif [ "${!i}" == "-w" ] || [ "${!i}" == "--wipe" ]; then
             WIPE=1
             argument_parameter_exists ${i} $@
@@ -145,9 +153,8 @@ parse_arguments() {
 wipe_env() {
     if [ ${WIPE} -eq 1 ]; then
         local modifiers=""
-        if [ ${SILENT_MODE} -eq 1 ]; then
-            modifiers="${modifiers} --silent"
-        fi
+        [ ${SILENT_MODE} -eq 1 ] && modifiers="${modifiers} --silent"
+        [ ${DEBUG_MODE} -eq 1 ] && modifiers="${modifiers} --debug"
 
         ${ROOT_DIR}/setup/wipe-env.sh ${modifiers} ${WIPE_CONF}
     fi
@@ -163,9 +170,8 @@ check_root() {
 setup_tools() {
     if [ ${SETUP_TOOLS} -eq 1 ]; then
         local modifiers=""
-        if [ ${SILENT_MODE} -eq 1 ]; then
-            modifiers="${modifiers} --silent"
-        fi
+        [ ${SILENT_MODE} -eq 1 ] && modifiers="${modifiers} --silent"
+        [ ${DEBUG_MODE} -eq 1 ] && modifiers="${modifiers} --debug"
 
         ${ROOT_DIR}/setup/setup-tools.sh ${modifiers} ${TOOLS_CONF}
     fi
@@ -173,9 +179,8 @@ setup_tools() {
 
 offline_emulation_modification() {
     local modifiers=""
-    if [ ${SILENT_MODE} -eq 1 ]; then
-        modifiers="--silent"
-    fi
+    [ ${SILENT_MODE} -eq 1 ] && modifiers="${modifiers} --silent"
+    [ ${DEBUG_MODE} -eq 1 ] && modifiers="${modifiers} --debug"
 
     if [ ${DO_BACKUP} -eq 1 ]; then
         modifiers="${modifiers} --backup"
@@ -186,9 +191,8 @@ offline_emulation_modification() {
 
 root_modification() {
     local modifiers=""
-    if [ ${SILENT_MODE} -eq 1 ]; then
-        modifiers="--silent"
-    fi
+    [ ${SILENT_MODE} -eq 1 ] && modifiers="${modifiers} --silent"
+    [ ${DEBUG_MODE} -eq 1 ] && modifiers="${modifiers} --debug"
 
     ${ROOT_DIR}/modify/root-detection-evasion.sh ${modifiers} ${ROOT_CONF}
 } # root_modification()
