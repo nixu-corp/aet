@@ -181,7 +181,7 @@ backup_system_props() {
         ret=1
     fi
 
-    local backup_file="${BUILD_PROP_FILE}${BACKUP_POSTFIX}"
+    local backup_file="system${BACKUP_POSTFIX}"
 
     if [ ${ret} -eq 0 ]; then
         [ -f ${BACKUP_DIR}/${backup_file} ] && rm ${BACKUP_DIR}/${backup_file} &>/dev/null
