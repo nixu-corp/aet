@@ -17,8 +17,8 @@ emulator_is_running() {
     # Line 2: emulator-5554     device
     # Line 3:
 
-    local line_count=$(${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb devices | wc -l)
-    [ ${line_count} -gt 2 ] && return 0 || return 1
+    local output=$(${ASDK_DIR}/$(ls ${ASDK_DIR})/platform-tools/adb devices | grep -o "emulator-[[:digit:]]\{4\}[[:blank:]]*device")
+    [ -z "${output}" ] && return 1 || return 0
 } # emulator_is_running()
 
 start_avd() {
@@ -39,7 +39,8 @@ reboot_avd() {
 wait_for_device() {
     write "Waiting"
     local output=""
-    local timeout_sec=60
+    local timeout_sec=120 # 2 minutes
+    local timeout_status=0
     local ret=1
     printf "1" > /dev/shm/emulator-tmp.txt
 
@@ -54,20 +55,19 @@ wait_for_device() {
     done &
 
     while true; do
-        write "."
         sleep 1
         timeout_sec=$((timeout_sec - 1))
         ret=$(</dev/shm/emulator-tmp.txt)
-        if [ ${timeout_sec} -le 0 ]; then
-            kill $!
-            trap 'kill $1' SIGTERM
-            break
+        if [ ${timeout_sec} -le 0 ] && [ ${timeout_status} -eq 0 ]; then
+            println "\nWARNING: Emulator has not started in 2 minutes, if you want to cancel, press Ctrl-C. Run with --debug for more information that is written to the log file."
+            timeout_status=1
         fi
+        write "."
 
         [ ${ret} -eq 0 ] && break
     done
 
-    rm /dev/shm/emulator-tmp.txt &>/dev/null
+    log "INFO" "$(rm /dev/shm/emulator-tmp.txt 2>&1)"
 
     println ""
     return ${ret}
