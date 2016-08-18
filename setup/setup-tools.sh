@@ -25,7 +25,7 @@ BANNER="
 >                                      <
 ========================================
 "
-DEBUG_MOD=0
+DEBUG_MODE=0
 SILENT_MODE=0
 
 ANDROID_SDK_SYS_IMG_BASE_URL="https://dl.google.com/android/repository/sys-img"

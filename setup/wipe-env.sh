@@ -135,7 +135,7 @@ wipe_tools() {
         println "Skipping Android SDK"
     fi
 
-    if [ ! -z "${AVD_DIR}" ] && [ -d ${AVD_DIR} ]; then
+    if [ ! -z "${AVD_DIR}" ] && [ "$(ls -A ${AVD_DIR})" ]; then
         output="$(rm -r ${AVD_DIR}/* 2>&1)"
         if [ $? -eq 0 ]; then
             println "[\033[0;32m OK \033[0m] Delete Android Virtual Devices"
