@@ -49,7 +49,7 @@ $ bin/setup-env.sh --create
 
 #### After that you can fire up the emulator (See [Running emulator][8]): ####
 ```
-$ bin/run-emulator.sh ~/android-sdk/ android-17-default
+$ bin/run-emulator.sh ~/android-sdk/ default-emulation-detection-evasion-avd.conf
 ```
 
 #### If everything is working, you can take a look at some examples: [Examples][9] ####
