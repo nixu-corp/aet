@@ -1,3 +1,7 @@
+All parts of this repository use the following MIT License,
+except ones defined below
+
+---------------------------------------
 MIT License
 
 Copyright (c) 2016 Nixu Corporation
@@ -19,3 +23,18 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+---------------------------------------
+
+The following parts are owned, developed, and/or maintined by their own
+respective develoeprs. Please visit them and check their licences.
+
+---------------------------------------
+
+- osm0sis' mkbootfs
+https://github.com/osm0sis/mkbootfs/blob/master/NOTICE
+
+- Cydia Substrate
+http://www.cydiasubstrate.com/
+
+- Android SDK
+https://developer.android.com/studio/terms.html
