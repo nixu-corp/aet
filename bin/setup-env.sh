@@ -58,6 +58,14 @@ ROOT_CONF="conf/root-detection-evasion.conf"
 
 check_dependencies() {
     local ret=0
+    if [ -z "$(uname -m | grep 64)" ]; then
+        local answer=""
+        read -p "You don't seem to run 64-bit, do you want to continue ([y]es/[n]o)?" answer
+        if [ "${answer}" != "yes" ] && [ "${answer}" != "y" ]; then
+            exit
+        fi
+    fi
+
     if [ -z "$(which java)" ]; then
         ret=1
         std_err "Dependency missing: Java"
