@@ -52,7 +52,7 @@ $ bin/setup-env.sh --create
 $ bin/run-emulator.sh ~/android-sdk/ default-emulation-detection-evasion-avd
 ```
 
-#### If everything is working, you can take a look at some examples: [Examples][9] ####
+#### If everything is working, you can take a look at more examples: [Examples][9] ####
 
 
 ## Documentation ##
