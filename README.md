@@ -71,7 +71,7 @@ been submitted!
 
 Kimmo Linnavuo, for assisting in researching emulation detection
 
-Timo Järventausta, for his useful comments about user-friendliness
+Timo Järventausta (@timojarv), for his useful comments about user-friendliness
 
 Aaro Lehikoinen, for helping with testing and code review
 
